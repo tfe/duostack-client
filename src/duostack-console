@@ -1,0 +1,15 @@
+#!/bin/bash
+
+if [ ! -d ".git" ]; then
+  echo "ERROR: Cannot locate the Git repository"
+  exit
+fi
+
+app=`git remote -v | grep -m1 git@duostack.net | cut -f 2 -d: | cut -f 1 -d.`
+
+if [ "$app" == "" ]; then
+  echo "ERROR: Cannot locate the Duostack repository in Git remotes"
+  exit
+fi
+
+.duostack-console-expect $app

@@ -1,0 +1,161 @@
+#!/usr/bin/env ruby
+
+$client = File.basename(__FILE__)
+
+require 'cgi'
+
+if ARGV.length > 0 && ARGV[0] == "version"
+  puts "0.0.8"
+  exit
+end
+
+if `file ~/.ssh/id_rsa.pub`[/text|key/]
+  idfile = '~/.ssh/id_rsa.pub'
+elsif `file ~/.ssh/id_dsa.pub`[/text|key/]
+  idfile = '~/.ssh/id_dsa.pub'
+elsif `file ~/.ssh/identity.pub`[/text|key/]
+  idfile = '~/.ssh/identity.pub'
+else
+  warn "#{$client}: generate an SSH key before running this client"
+  exit false
+end
+
+$api_host = "https://duostack.duostack.net"
+if !`curl -V`[/SSL/]
+  $api_host = "http://duostack.duostack.net"
+  warn "#{$client}: insecure plaintext mode because curl SSL support is missing"
+end
+$api_host = "http://localhost:3000" if ENV['DSLOCAL']
+puts "Internal development mode" if ENV['DSLOCAL']
+
+$credentials=`cat ~/.duostack 2>/dev/null`.chomp
+if $credentials.empty? || $credentials[/redirected/]
+  puts "First-time Duostack client setup"
+  print "Email Address: "
+  input_username = $stdin.gets.chomp
+  ssh_key = `cat #{idfile}`.chomp
+  puts `bash -c 'read -sp "Password: " passwd; echo $passwd > ~/.duostack2'`
+  input_password = CGI::escape(`cat ~/.duostack2`.chomp)
+  `rm -f ~/.duostack2`
+  `curl -m 5 "#{$api_host}/api/get_token?api_username=#{CGI::escape(input_username)}&api_password=#{input_password}&ssh_key=#{CGI::escape(ssh_key)}" -o ~/.duostack -s 2>&1 >/dev/null`
+  $credentials=`cat ~/.duostack 2>/dev/null`.chomp
+  if $credentials.empty? || $credentials[/redirected/] || $credentials.length != 32
+    puts "Authentication error, please try again"
+    `rm -f ~/.duostack`
+    exit false
+  end
+  `echo 'api_username=#{CGI::escape(input_username)}&api_token=#{$credentials}' > ~/.duostack`
+  $credentials=`cat ~/.duostack 2>/dev/null`.chomp
+  puts "Completed initial setup... waiting for sync..."
+  # Do a sync check here in the future, 4 secs is safe for now
+  sleep 4
+  puts ""
+end
+
+def api_get(url)
+  puts `echo curl -m 30 "#{$api_host}/#{url}&#{$credentials}" -s 2>&1` if ENV['DSDEBUG']
+  `curl -m 30 "#{$api_host}/#{url}&#{$credentials}" -s 2>&1`
+end
+
+if ARGV.length == 0 || ARGV[0] == "help"
+  puts <<EOF
+Usage: #{$client} ..
+
+General Commands:
+  create <app name>	Initialize a Git repository as a Duostack app
+  list			Show all associated Duostack apps
+  version		Print version of this Duostack client
+
+App Commands:
+  logs			Retrieve server logs
+  restart		Restart your instances
+
+App Commands - Ruby:
+  console		Connect to IRB/Rails console
+  rake <command..>	Run a rake command
+
+EOF
+  exit
+end
+
+app=`git remote -v 2>&1 | grep -m1 git@duostack.net | grep ".git" | cut -f 2 -d: | cut -f 1 -d.`.chomp
+
+if app.empty? && ['console','rake','restart','logs'].include?(ARGV[0])
+  warn "#{$client}: run this command from a Duostack app folder"
+  exit false  
+end
+
+if ARGV[0] == "list"
+  get_list = api_get("api/list_apps?1")
+  if get_list[/\n/] # needs work
+    puts get_list
+    exit
+  else
+    warn "#{$client}: no apps found"
+    exit false
+  end
+end
+
+if ARGV[0] == "console"
+  exec('duostack-console')
+  exit
+end
+
+if ARGV[0] == "rake"
+  if ARGV.length < 2
+    warn "#{$client}: try '#{$client} rake <command..>'"
+    exit false
+  end
+  # Need this to go longer
+  puts `curl -m 60 "#{$api_host}/api/run_rake?app_name=#{app}&command=#{CGI::escape(ARGV[1,999].join(' '))}&#{$credentials}" -s`
+  exit
+end
+
+if ARGV[0] == "restart"
+  get_log = api_get("api/restart?app_name=#{app}")
+  if get_log[/SUCCESS/]
+    puts "App restarted"
+    exit
+  else
+    puts "Unable to restart app"
+    exit false
+  end
+end
+
+if ARGV[0] == "logs"
+  get_log = api_get("api/get_logs?app_name=#{app}")
+  if get_log[/\.log/]
+    puts get_log
+    exit
+  else
+    warn "#{$client}: no logs found"
+    exit false
+  end
+end
+
+if ARGV[0] == "create"
+  if ARGV.length < 2
+    warn "#{$client}: try '#{$client} create <app name>'"
+    exit false
+  end
+  if `git status 2>&1`[/Not a git/]
+    warn "#{$client}: initialize Git repository before using create"
+    exit false
+  end
+  if !app.empty?
+    warn "#{$client}: this repository is already initialized for Duostack"
+    exit false
+  end
+  # check if remote duostack already exists in the future
+  if api_get("api/create_app?app_name=#{CGI::escape(ARGV[1].downcase)}")[/SUCCESS/]
+    `git remote add duostack git@duostack.net:#{CGI::escape(ARGV[1].downcase)}.git`
+    puts "Duostack initialized. To push: git push duostack master"
+    exit
+  else
+    puts "This app name is unavailable. Please try another."
+    exit false
+  end
+end
+
+puts "#{$client}: for usage, run '#{$client}' without arguments"
+exit false
