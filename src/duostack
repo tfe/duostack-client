@@ -5,7 +5,7 @@ $client = File.basename(__FILE__)
 require 'cgi'
 
 if ARGV.length > 0 && ARGV[0] == "version"
-  puts "0.0.8"
+  puts "0.0.9"
   exit
 end
 
