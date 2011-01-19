@@ -1,0 +1,3 @@
+#!/usr/bin/env ruby
+
+exec(File.open(File.join(File.dirname(__FILE__), 'bash', File.basename(__FILE__))).read)

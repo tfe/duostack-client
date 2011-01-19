@@ -1,0 +1,15 @@
+require 'rubygems'
+require 'rake'
+
+require 'jeweler'
+Jeweler::Tasks.new do |gem|
+  # gem is a Gem::Specification... see http://docs.rubygems.org/read/chapter/20 for more options
+  gem.name = "duostack"
+  gem.version = `bin/duostack version`.chomp
+  gem.summary = %Q{Duostack command line client}
+  gem.description = %Q{Duostack command line client: create and manage Duostack apps}
+  gem.email = ["dave@duostack.com", "todd@toddeichel.com"]
+  gem.authors = ["David E. Chen", "Todd Eichel"]
+  
+  gem.executables = ["duostack", "duostack-console", ".duostack-console-expect"]
+end

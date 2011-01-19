@@ -1,0 +1,15 @@
+{
+  "name": "duostack",
+  "description": "Duostack command line client: create and manage Duostack apps",
+  "version": "",
+  "repository": {},
+  "author": "David E. Chen <dave@duostack.com>",
+  "contributors": [
+    { "name": "Todd Eichel", "email": "todd@toddeichel.com" }
+  ],
+  "bin": {
+    "duostack": "./bin/duostack",
+    "duostack-console": "./bin/duostack-console",
+    ".duostack-console-expect": "./bin/.duostack-console-expect"
+  }
+}
