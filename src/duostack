@@ -69,6 +69,7 @@ General Commands:
 App Commands:
   logs                  Retrieve server logs
   restart               Restart your instances
+  ps                    List your instances and their statuses
 
 App Commands - Ruby:
   console               Connect to IRB/Rails console
@@ -80,7 +81,7 @@ end
 
 app=`git remote -v 2>&1 | grep -m1 git@duostack.net | grep ".git" | cut -f 2 -d: | cut -f 1 -d.`.chomp
 
-if app.empty? && ['console','rake','restart','logs'].include?(ARGV[0])
+if app.empty? && ['console','rake','restart','logs','ps'].include?(ARGV[0])
   warn "#{$client}: run this command from a Duostack app folder"
   exit false  
 end
@@ -129,6 +130,17 @@ if ARGV[0] == "logs"
     exit
   else
     warn "#{$client}: no logs found"
+    exit false
+  end
+end
+
+if ARGV[0] == "ps"
+  result = api_get("api/get_instances?app_name=#{app}")
+  if result[/Instance ID|Status/]
+    puts result
+    exit
+  else
+    warn "#{$client}: unable to get instances"
     exit false
   end
 end
