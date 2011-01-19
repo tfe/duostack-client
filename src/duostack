@@ -58,21 +58,21 @@ def api_get(url)
 end
 
 if ARGV.length == 0 || ARGV[0] == "help"
-  puts <<EOF
+  puts <<-EOF
 Usage: #{$client} ..
 
 General Commands:
-  create <app name>	Initialize a Git repository as a Duostack app
-  list			Show all associated Duostack apps
-  version		Print version of this Duostack client
+  create <app name>     Initialize a Git repository as a Duostack app
+  list                  Show all associated Duostack apps
+  version               Print version of this Duostack client
 
 App Commands:
-  logs			Retrieve server logs
-  restart		Restart your instances
+  logs                  Retrieve server logs
+  restart               Restart your instances
 
 App Commands - Ruby:
-  console		Connect to IRB/Rails console
-  rake <command..>	Run a rake command
+  console               Connect to IRB/Rails console
+  rake <command..>      Run a rake command
 
 EOF
   exit
