@@ -13,7 +13,7 @@ namespace :package do
   
   task :tgz => :version do
     puts "Packaging tgz of version #{$version}"
-    `tar -czf packages/duostack-client.#{$version}.tgz -C src .`
+    `sh -c 'COPYFILE_DISABLE=true tar -czf packages/duostack-client.#{$version}.tgz -C src .'`
   end
   
   
@@ -48,6 +48,6 @@ namespace :package do
     end
     
     # write tarball
-    `tar -czf packages/duostack-client.#{$version}.npm.tgz -L -C support/npm .`
+    `sh -c 'COPYFILE_DISABLE=true tar -czf packages/duostack-client.#{$version}.npm.tgz -L -C support/npm .'`
   end
 end
