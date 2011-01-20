@@ -4,6 +4,18 @@ $client = File.basename(__FILE__)
 
 require 'cgi'
 
+
+# parse app name out of arguments
+app = if app_index = ARGV.index('--app')
+  # slice out app args so we don't re-use them later, returning second element.
+  # will be nil if no app name is passed after --app; that's okay.
+  ARGV.slice!(app_index, 2)[1]
+else
+  # fall back to parsing out of duostack git remote
+  `git remote -v 2>&1 | grep -m1 git@duostack.net | grep ".git" | cut -f 2 -d: | cut -f 1 -d.`.chomp
+end
+
+
 if ARGV.length > 0 && ARGV[0] == "version"
   puts "0.0.9"
   exit
@@ -79,10 +91,8 @@ EOF
   exit
 end
 
-app=`git remote -v 2>&1 | grep -m1 git@duostack.net | grep ".git" | cut -f 2 -d: | cut -f 1 -d.`.chomp
-
-if app.empty? && ['console','rake','restart','logs','ps'].include?(ARGV[0])
-  warn "#{$client}: run this command from a Duostack app folder"
+if (app.nil? or app.empty?) && ['console','rake','restart','logs','ps'].include?(ARGV[0])
+  warn "#{$client}: run this command from a Duostack app folder or pass an app name with the --app argument"
   exit false  
 end
 
