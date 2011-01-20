@@ -49,5 +49,8 @@ namespace :package do
     
     # write tarball
     `sh -c 'COPYFILE_DISABLE=true tar -czf packages/duostack-client.#{$version}.npm.tgz -L -C support/npm .'`
+    
+    # clean up generated package.json
+    `rm support/npm/package/package.json`
   end
 end
