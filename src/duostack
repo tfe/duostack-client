@@ -108,7 +108,7 @@ if ARGV[0] == "list"
 end
 
 if ARGV[0] == "console"
-  exec('duostack-console')
+  exec(".duostack-console-expect #{app}")
   exit
 end
 

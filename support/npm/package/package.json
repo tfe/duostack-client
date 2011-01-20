@@ -9,7 +9,6 @@
   ],
   "bin": {
     "duostack": "./bin/duostack",
-    "duostack-console": "./bin/duostack-console",
     ".duostack-console-expect": "./bin/.duostack-console-expect"
   }
 }

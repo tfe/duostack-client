@@ -9,18 +9,16 @@ Gem::Specification.new do |s|
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["David E. Chen", "Todd Eichel"]
-  s.date = %q{2011-01-19}
+  s.date = %q{2011-01-20}
   s.description = %q{Duostack command line client: create and manage Duostack apps}
   s.email = ["dave@duostack.com", "todd@toddeichel.com"]
-  s.executables = ["duostack", "duostack-console", ".duostack-console-expect"]
+  s.executables = ["duostack", ".duostack-console-expect"]
   s.files = [
     ".document",
     "Rakefile",
     "bin/.duostack-console-expect",
     "bin/bash/.duostack-console-expect",
-    "bin/bash/duostack-console",
     "bin/duostack",
-    "bin/duostack-console",
     "duostack.gemspec"
   ]
   s.require_paths = ["lib"]

@@ -11,5 +11,5 @@ Jeweler::Tasks.new do |gem|
   gem.email = ["dave@duostack.com", "todd@toddeichel.com"]
   gem.authors = ["David E. Chen", "Todd Eichel"]
   
-  gem.executables = ["duostack", "duostack-console", ".duostack-console-expect"]
+  gem.executables = ["duostack", ".duostack-console-expect"]
 end
