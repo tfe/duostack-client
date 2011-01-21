@@ -73,7 +73,7 @@ end
 
 if ARGV.length == 0 || ARGV[0] == "help"
   puts <<-EOF
-Usage: #{$client} ..
+Usage: #{$client} <command> [--app <appname>]
 
 General Commands:
   create <app name>     Initialize a Git repository as a Duostack app
@@ -84,10 +84,11 @@ App Commands:
   logs                  Retrieve server logs
   restart               Restart your instances
   ps                    List your instances and their statuses
+  destroy               Destroy Duostack app and associated data
 
 App Commands - Ruby:
   console               Connect to IRB/Rails console
-  rake <command..>      Run a rake command
+  rake <command>        Run a rake command
 
 EOF
   exit
