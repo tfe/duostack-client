@@ -35,7 +35,7 @@ namespace :package do
     puts "Packaging gem of version #{$version}"
     `cd support/gem && rake gemspec && rake build` # builds gem into pkg/
     `mv support/gem/pkg/duostack-#{$version}.gem packages/duostack-client.#{$version}.gem` # move to our packages directory
-    `rm -rf support/gem/pkg/` # clean up
+    `rm -rf support/gem/pkg/ support/gem/duostack.gemspec` # clean up
   end
   
   
