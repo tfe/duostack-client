@@ -1,5 +1,19 @@
-task :default => 'package:all'
+require 'rubygems'
+require 'rspec/core/rake_task'
 
+RSpec::Core::RakeTask.new(:test) do |spec|
+  spec.pattern = 'test/**/*_spec.rb'
+  spec.rspec_opts = ['--format doc', '--color']
+end
+
+namespace :test do
+  task :rvm do
+    exec('rvm 1.8.6,1.9.2 rake test')
+  end
+end
+
+
+task :default => 'package:all'
 
 task :version do
   $version = `src/duostack version`.chomp

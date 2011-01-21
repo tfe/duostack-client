@@ -1,0 +1,2 @@
+desc "Dummy task"
+task :about do; end

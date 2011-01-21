@@ -1,0 +1,12 @@
+#!/usr/bin/env expect
+
+set appname [lindex $argv 0]
+set command [lindex $argv 1]
+
+spawn duostack console --app $appname
+expect ">> "
+send $command
+send "\n"
+expect ">> "
+send "exit\n"
+expect eof
