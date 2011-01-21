@@ -7,10 +7,12 @@ require 'cgi'
 
 # parse app name out of arguments
 app = if app_index = ARGV.index('--app')
+  app_name_source = :flag
   # slice out app args so we don't re-use them later, returning second element.
   # will be nil if no app name is passed after --app; that's okay.
   ARGV.slice!(app_index, 2)[1]
 else
+  app_name_source = :git_remote
   # fall back to parsing out of duostack git remote
   `git remote -v 2>&1 | grep -m1 git@duostack.net | grep ".git" | cut -f 2 -d: | cut -f 1 -d.`.chomp
 end
@@ -91,7 +93,7 @@ EOF
   exit
 end
 
-if (app.nil? or app.empty?) && ['console','rake','restart','logs','ps'].include?(ARGV[0])
+if (app.nil? or app.empty?) && ['destroy','console','rake','restart','logs','ps'].include?(ARGV[0])
   warn "#{$client}: run this command from a Duostack app folder or pass an app name with the --app argument"
   exit false  
 end
@@ -177,6 +179,39 @@ if ARGV[0] == "create"
     puts "This app name is unavailable. Please try another."
     exit false
   end
+end
+
+if ARGV[0] == "destroy"
+  
+  # ensure app came from command line flag
+  unless app_name_source == :flag
+    warn "#{$client}: use with '--app <appname>' to destroy"
+    exit false
+  end
+  
+  # ensure confirmation
+  unless ARGV.include?('--confirm')
+    warn "#{$client}: run again with '--confirm' to destroy"
+    exit false
+  end
+  
+  remote = `git remote show duostack 2>/dev/null`     # pull out remote name before we destroy
+  result = api_get("api/delete_app?app_name=#{app}")  # destroy
+  
+  if result[/SUCCESS/]
+    # attempt to remove duostack git remote
+    # only if "duostack" remote actually references this app's remote
+    if !remote.empty? and remote.scan("git@duostack.net:#{app}.git").length > 0
+      `git remote rm duostack 2>/dev/null`
+    end
+    
+    puts "App destroyed"
+    exit
+  else
+    puts "Unable to destroy app"
+    exit false
+  end
+
 end
 
 puts "#{$client}: for usage, run '#{$client}' without arguments"
