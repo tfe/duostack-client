@@ -184,15 +184,9 @@ end
 
 if ARGV[0] == "destroy"
   
-  # ensure app came from command line flag
-  unless app_name_source == :flag
-    warn "#{$client}: use with '--app <appname>' to destroy"
-    exit false
-  end
-  
-  # ensure confirmation
-  unless ARGV.include?('--confirm')
-    warn "#{$client}: run again with '--confirm' to destroy"
+  # ensure confirmation and app came from command line flag
+  if app_name_source != :flag or !ARGV.include?('--confirm')
+    warn "#{$client}: run with '--confirm --app <appname>' to destroy"
     exit false
   end
   
