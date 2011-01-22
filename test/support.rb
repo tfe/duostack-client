@@ -1,7 +1,7 @@
 # spec helper methods
 
 def build_command(command)
-  "#{File.dirname(__FILE__)}/../src/duostack #{command}"
+  "#{$client} #{command}"
 end
 
 def run_command(command)

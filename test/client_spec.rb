@@ -3,6 +3,10 @@ require File.dirname(__FILE__) + '/support'
 describe "Duostack client" do
   
   before(:all) do
+    # set which client to use (allows testing of gem installed client)
+    # uses client in src/ by default
+    $client = ENV['DSCLIENT'] || "#{File.dirname(__FILE__)}/../src/duostack"
+    
     # generate a test app name off of current timestamp
     @app_name = "test#{Time.now.to_i}"
     @app_path = "/tmp/duostack/#{@app_name}"
