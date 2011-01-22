@@ -6,24 +6,41 @@ RSpec::Core::RakeTask.new(:test) do |spec|
   spec.rspec_opts = ['--format doc', '--color']
 end
 
+task :default => :test
 namespace :test do
   task :rvm do
     exec('rvm 1.8.6,1.9.2 rake test')
   end
+  
+  namespace :packages do
+    task :gem => :version do
+      puts "Removing any existing duostack gem installations..."
+      puts `rvm 1.8.6,1.9.2 gem uninstall duostack -ax`
+      puts "Installing packaged gem..."
+      puts `rvm 1.8.6,1.9.2 gem install packages/duostack-client.#{$version}.gem`
+      puts "Running tests..."
+      exec("DSCLIENT=duostack rake test:rvm")
+    end
+    task :npm => :version do
+      puts "Removing any duostack gem installations..."
+      puts `sudo gem uninstall duostack -ax`
+      puts "Installing npm package..."
+      puts `npm install ./packages/duostack-client.#{$version}.npm.tgz`
+      puts "Running tests... (duostack is now #{`which duostack`.chomp})"
+      exec("DSCLIENT=duostack rake test")
+    end
+  end
 end
-
-
-task :default => 'package:all'
 
 task :version do
   $version = `src/duostack version`.chomp
 end
 
+task :package => 'package:all'
 namespace :package do
   
   desc "Create gem, npm, and tgz packages of the client."
   task :all => [:tgz, :gem, :npm]
-  
   
   task :tgz => :version do
     puts "Packaging tgz of version #{$version}"
