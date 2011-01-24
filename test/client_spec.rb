@@ -102,6 +102,10 @@ describe "Duostack client" do
       result.should match("App destroyed")
     end
     
+    it "should not have deleted app in list" do
+      run_command("list").should_not match(@app_name)
+    end
+    
     it "should clean up duostack git remote" do
       result = `cd #{@app_path} && git remote`.chomp
       result.should_not include('duostack')
