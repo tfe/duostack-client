@@ -10,7 +10,7 @@ Jeweler::Tasks.new do |gem|
   gem.description = %Q{Duostack command line client: create and manage Duostack apps}
   gem.email = ["dave@duostack.com", "todd@toddeichel.com"]
   gem.authors = ["David E. Chen", "Todd Eichel"]
-  gem.require_paths = '.' # default is ["lib"] but we don't have that
+  gem.require_paths = ['.'] # default is ["lib"] but we don't have that
   
   gem.executables = ["duostack", ".duostack-console-expect"]
 end
