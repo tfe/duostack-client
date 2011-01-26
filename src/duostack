@@ -108,8 +108,8 @@ if $credentials.empty? || $credentials[/redirected/]
 end
 
 def api_get(url)
-  debug = `echo curl -m 30 "#{$api_host}/#{url}&#{$credentials}" -s 2>&1`
-  result = `curl -m 30 "#{$api_host}/#{url}&#{$credentials}" -s 2>&1`
+  debug = `echo curl -m 30 "#{$api_host}/#{url}&#{$credentials}" -sf`
+  result = `curl -m 30 "#{$api_host}/#{url}&#{$credentials}" -sf`
   debug += result
   puts debug if ENV['DSDEBUG']
   return result
