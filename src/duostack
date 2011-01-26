@@ -67,11 +67,14 @@ if $credentials.empty? || $credentials[/redirected/]
 end
 
 def api_get(url)
-  puts `echo curl -m 30 "#{$api_host}/#{url}&#{$credentials}" -s 2>&1` if ENV['DSDEBUG']
-  `curl -m 30 "#{$api_host}/#{url}&#{$credentials}" -s 2>&1`
+  debug = `echo curl -m 30 "#{$api_host}/#{url}&#{$credentials}" -s 2>&1`
+  result = `curl -m 30 "#{$api_host}/#{url}&#{$credentials}" -s 2>&1`
+  debug += result
+  puts debug if ENV['DSDEBUG']
+  return result
 end
 
-if ARGV.length == 0 || ARGV[0] == "help"
+if (!command_noun && ARGV.length == 0) || ARGV[0] == "help"
   puts <<-EOF
 Usage: #{$client} <command> [--app <appname>]
 
