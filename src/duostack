@@ -148,10 +148,24 @@ if command_noun == 'env'
   case command_verb
   when 'list', 'ls'
     truncate = !flags.delete('--long')
-    puts api_get("api/list_envs?app_name=#{app}&truncate=#{truncate}")
+    result = api_get("api/list_envs?app_name=#{app}&truncate=#{truncate}")
+    if result[/\n/]
+      puts result
+      exit
+    else
+      puts "Unable to list environment variables"
+      exit false
+    end
     
   when 'add'
-    puts api_get("api/add_env?app_name=#{app}&input=#{CGI::escape(command_argument)}")
+    result = api_get("api/add_env?app_name=#{app}&input=#{CGI::escape(command_argument)}")
+    if result[/\n/]
+      puts result
+      exit
+    else
+      puts "Unable to add environment variable(s)"
+      exit false
+    end
     
   when 'remove', 'rm'
     result = api_get("api/remove_env?app_name=#{app}&name=#{CGI::escape(command_argument)}")
@@ -177,8 +191,6 @@ if command_noun == 'env'
   else
     exit false # this shouldn't happen
   end
-  
-  exit
 end
 
 if ARGV[0] == "list"
@@ -203,8 +215,14 @@ if ARGV[0] == "rake"
     exit false
   end
   # Need this to go longer
-  puts `curl -m 60 "#{$api_host}/api/run_rake?app_name=#{app}&command=#{CGI::escape(ARGV[1,999].join(' '))}&#{$credentials}" -s`
-  exit
+  result = `curl -m 60 "#{$api_host}/api/run_rake?app_name=#{app}&command=#{CGI::escape(ARGV[1,999].join(' '))}&#{$credentials}" -s`
+  if result[/\n/]
+    puts result
+    exit
+  else
+    puts "Unable to run rake task"
+    exit false
+  end
 end
 
 if ARGV[0] == "restart"
