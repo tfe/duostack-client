@@ -138,7 +138,46 @@ EOF
   exit
 end
 
-if (app.nil? or app.empty?) && (command_noun or ['destroy','console','rake','restart','logs','ps'].include?(ARGV[0]))
+if ARGV[0] == "list"
+  get_list = api_get("api/list_apps?1")
+  if get_list[/\n/] # needs work
+    puts get_list
+    exit
+  else
+    warn "#{$client}: no apps found"
+    exit false
+  end
+end
+
+if ARGV[0] == "create"
+  if ARGV.length < 2
+    warn "#{$client}: try '#{$client} create <app name>'"
+    exit false
+  end
+  if `git status 2>&1`[/Not a git/]
+    warn "#{$client}: initialize Git repository before using create"
+    exit false
+  end
+  if !app.empty?
+    warn "#{$client}: this repository is already initialized for Duostack"
+    exit false
+  end
+  # check if remote duostack already exists in the future
+  if api_get("api/create_app?app_name=#{CGI::escape(ARGV[1].downcase)}")[/SUCCESS/]
+    `git remote add duostack git@duostack.net:#{CGI::escape(ARGV[1].downcase)}.git`
+    puts "Duostack initialized. To push: git push duostack master"
+    exit
+  else
+    puts "This app name is unavailable. Please try another."
+    exit false
+  end
+end
+
+
+
+
+# anything beyond this point is an app command, so require the app to be specified
+if app.nil? or app.empty?
   warn "#{$client}: run this command from a Duostack app folder or pass an app name with the --app argument"
   exit false  
 end
@@ -193,17 +232,6 @@ if command_noun == 'env'
   end
 end
 
-if ARGV[0] == "list"
-  get_list = api_get("api/list_apps?1")
-  if get_list[/\n/] # needs work
-    puts get_list
-    exit
-  else
-    warn "#{$client}: no apps found"
-    exit false
-  end
-end
-
 if ARGV[0] == "console"
   exec(".duostack-console-expect #{app}")
   exit
@@ -254,30 +282,6 @@ if ARGV[0] == "ps"
     exit
   else
     warn "#{$client}: unable to get instances"
-    exit false
-  end
-end
-
-if ARGV[0] == "create"
-  if ARGV.length < 2
-    warn "#{$client}: try '#{$client} create <app name>'"
-    exit false
-  end
-  if `git status 2>&1`[/Not a git/]
-    warn "#{$client}: initialize Git repository before using create"
-    exit false
-  end
-  if !app.empty?
-    warn "#{$client}: this repository is already initialized for Duostack"
-    exit false
-  end
-  # check if remote duostack already exists in the future
-  if api_get("api/create_app?app_name=#{CGI::escape(ARGV[1].downcase)}")[/SUCCESS/]
-    `git remote add duostack git@duostack.net:#{CGI::escape(ARGV[1].downcase)}.git`
-    puts "Duostack initialized. To push: git push duostack master"
-    exit
-  else
-    puts "This app name is unavailable. Please try another."
     exit false
   end
 end
