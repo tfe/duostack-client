@@ -232,6 +232,42 @@ if command_noun == 'env'
   end
 end
 
+
+if ARGV[0] == "option"
+  
+  name, value = ARGV[1..2] # value will be nil if there is no ARGV[2]
+  
+  if name
+    if value
+      result = api_get("api/option_set?app_name=#{app}&name=#{name}&val=#{value}")
+      if result[/SUCCESS/]
+        puts "Set option '#{name}' to '#{value}'"
+        exit
+      else
+        puts "Unable to set option"
+        exit false
+      end
+      
+    else
+      # no value given, get option list
+      result = api_get("api/option_get?app_name=#{app}&name=#{name}")
+      if result[/\n/]
+        puts result
+        exit
+      else
+        puts "Unable to get option"
+        exit false
+      end
+    end
+    
+  else
+    warn "#{$client}: try '#{$client} define <option> <value>'"
+    exit false
+  end
+  
+end
+
+
 if ARGV[0] == "console"
   exec(".duostack-console-expect #{app}")
   exit
