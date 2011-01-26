@@ -17,6 +17,19 @@ else
   `git remote -v 2>&1 | grep -m1 git@duostack.net | grep ".git" | cut -f 2 -d: | cut -f 1 -d.`.chomp
 end
 
+# pull flags out of arguments (has to happen after app flag is extracted)
+flags = ARGV.select { |arg| arg[0..1] == '--' }
+ARGV.delete_if { |arg| flags.include?(arg) }
+
+# parse out confirmedness
+$confirmed = app_name_source == :flag && flags.delete('--confirm')
+def require_confirmation
+  unless $confirmed
+    warn "#{$client}: command requires confirmation, run again with '--confirm --app <appname>'"
+    exit false
+  end
+end
+
 
 if ARGV.length > 0 && ARGV[0] == "version"
   puts "0.0.9"
@@ -187,11 +200,7 @@ end
 
 if ARGV[0] == "destroy"
   
-  # ensure confirmation and app came from command line flag
-  if app_name_source != :flag or !ARGV.include?('--confirm')
-    warn "#{$client}: run with '--confirm --app <appname>' to destroy"
-    exit false
-  end
+  require_confirmation
   
   remote = `git remote show duostack 2>/dev/null`     # pull out remote name before we destroy
   result = api_get("api/delete_app?app_name=#{app}")  # destroy
