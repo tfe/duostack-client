@@ -70,6 +70,76 @@ describe "Duostack client" do
         run_command("ps --app #{@app_name}").should match('Instance ID')
       end
       
+      it "should allow adding env vars" do
+        run_command("env add env1=var1 --app #{@app_name}").should match('env1 => var1')
+      end
+      
+      it "should allow adding multiple env vars at once" do
+        result = run_command("env add env2=var2 env3=var3 --app #{@app_name}")
+        result.should match('env2 => var2')
+        result.should match('env3 => var3')
+      end
+      
+      it "should allow adding quoted env vars" do
+        run_command("env add env4='multi word string' --app #{@app_name}").should match('env4 => multi word string')
+      end
+      
+      it "should allow adding env vars containing single/double quotes" do
+        run_command(%Q(env add env5='"double quoted"' --app #{@app_name})).should match(%Q(env5 => "double quoted"))
+        run_command(%Q(env add env6="'single quoted'" --app #{@app_name})).should match(%Q(env6 => 'single quoted'))
+      end
+      
+      it "should list env vars" do
+        result = run_command("env --long --app #{@app_name}")
+        result.should match(run_command("env list --app #{@app_name}"))
+        result.should match('env1 => var1')
+        result.should match('env2 => var2')
+        result.should match('env3 => var3')
+        result.should match('env4 => multi word string')
+        result.should match('env5 => "double quoted"')
+        result.should match("env6 => 'single quoted'")
+      end
+      
+      it "should see env vars in console" do
+        run_command("restart --app #{@app_name}") # need to restart first
+        
+        result = `expect #{File.dirname(__FILE__)}/console_test.expect #{@app_name} "ENV['env1']"`.gsub("\r", '')
+        expected = <<-END.gsub(/^ {10}/, '').gsub("\r", '')
+          spawn duostack console --app #{@app_name}
+          Connecting to Ruby console for #{@app_name}...
+          >> ENV['env1']
+          => "var1"
+          >> exit
+          Connection to duostack.net closed.
+        END
+        
+        result.should == expected
+      end
+      
+      it "should allow removing env vars" do
+        run_command("env remove env1 --app #{@app_name}").should == "Environment variable(s) removed"
+        run_command("env --app #{@app_name}").should_not match('env1')
+      end
+
+      it "should allow removing multiple env vars at once" do
+        run_command("env remove env2 env3 --app #{@app_name}").should == "Environment variable(s) removed"
+        
+        list = run_command("env --app #{@app_name}")
+        list.should_not match('env2')
+        list.should_not match('env3')
+      end
+      
+      it "should require confirmation to clear env vars" do
+        run_command("env clear --app #{@app_name} 2>&1").should match("command requires confirmation")
+      end
+      
+      it "should clear env vars" do
+        run_command("env clear --app #{@app_name} --confirm").should match("Environment variables cleared")
+        list = run_command("env --app #{@app_name}")
+        list.should be_empty
+      end
+      
+      
       describe "for Ruby apps" do
         it "should start a console session" do
           result = `expect #{File.dirname(__FILE__)}/console_test.expect #{@app_name} "puts 'console test'"`.gsub("\r", '')

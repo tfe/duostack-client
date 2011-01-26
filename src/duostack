@@ -30,6 +30,34 @@ def require_confirmation
   end
 end
 
+# parse out CRUD commands (two-part commands)
+command_noun, command_verb, command_argument = [nil]*3
+['env'].each do |command_candidate|
+  
+  # look for any instances of CRUD commands
+  if command_index = ARGV.index(command_candidate)
+    command_noun = command_candidate
+    command_verb = if %w(add remove rm list ls clear).include?(ARGV[command_index+1])
+      ARGV[command_index+1]
+    else
+      'list' # default command
+    end
+    command_argument = if %w(add remove rm).include?(command_verb)
+      # takes all following arguments. recompose strings because ruby strips out quotation marks in the args.
+      ARGV[(command_index+2)..-1].collect do |arg|
+        if arg.include?('=')
+          result = arg.split('=',2)
+          %Q(#{result[0]}="#{result[1].gsub('"', '\"')}")
+        else
+          arg
+        end
+      end.join(' ')
+    end
+    ARGV.slice!(command_index..-1) # clear args we've handled out of array
+    break
+  end
+end
+
 
 if ARGV.length > 0 && ARGV[0] == "version"
   puts "0.0.9"
@@ -110,9 +138,47 @@ EOF
   exit
 end
 
-if (app.nil? or app.empty?) && ['destroy','console','rake','restart','logs','ps'].include?(ARGV[0])
+if (app.nil? or app.empty?) && (command_noun or ['destroy','console','rake','restart','logs','ps'].include?(ARGV[0]))
   warn "#{$client}: run this command from a Duostack app folder or pass an app name with the --app argument"
   exit false  
+end
+
+if command_noun == 'env'
+  
+  case command_verb
+  when 'list', 'ls'
+    truncate = !flags.delete('--long')
+    puts api_get("api/list_envs?app_name=#{app}&truncate=#{truncate}")
+    
+  when 'add'
+    puts api_get("api/add_env?app_name=#{app}&input=#{CGI::escape(command_argument)}")
+    
+  when 'remove', 'rm'
+    result = api_get("api/remove_env?app_name=#{app}&name=#{CGI::escape(command_argument)}")
+    if result[/SUCCESS/]
+      puts "Environment variable(s) removed"
+      exit
+    else
+      puts "Unable to remove environment variable(s)"
+      exit false
+    end
+    
+  when 'clear'
+    require_confirmation
+    
+    result = api_get("api/clear_envs?app_name=#{app}")
+    if result[/SUCCESS/]
+      puts "Environment variables cleared"
+      exit
+    else
+      puts "Unable to clear environment variables"
+      exit false
+    end
+  else
+    exit false # this shouldn't happen
+  end
+  
+  exit
 end
 
 if ARGV[0] == "list"
