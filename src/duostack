@@ -108,11 +108,17 @@ if $credentials.empty? || $credentials[/redirected/]
 end
 
 def api_get(url)
-  debug = `echo curl -m 30 "#{$api_host}/#{url}&#{$credentials}" -sf`
-  result = `curl -m 30 "#{$api_host}/#{url}&#{$credentials}" -sf`
+  debug = `echo curl -m 30 -w '\n%{http_code}' "#{$api_host}/#{url}&#{$credentials}" -sf`
+  result = `curl -m 30 -w '\n%{http_code}' "#{$api_host}/#{url}&#{$credentials}" -sf`
   debug += result
   puts debug if ENV['DSDEBUG']
-  return result
+  
+  result = result.split("\n")
+  if result.last != '200'
+    return "API Error"
+  else
+    return result[0..-2].join("\n")
+  end
 end
 
 if (!command_noun && ARGV.length == 0) || ARGV[0] == "help"
@@ -139,9 +145,9 @@ EOF
 end
 
 if ARGV[0] == "list"
-  get_list = api_get("api/list_apps?1")
-  if get_list[/\n/] # needs work
-    puts get_list
+  result = api_get("api/list_apps?1")
+  unless result == 'API Error'
+    puts result
     exit
   else
     warn "#{$client}: no apps found"
@@ -188,7 +194,7 @@ if command_noun == 'env'
   when 'list', 'ls'
     truncate = !flags.delete('--long')
     result = api_get("api/list_envs?app_name=#{app}&truncate=#{truncate}")
-    if result[/\n/]
+    unless result == 'API Error'
       puts result
       exit
     else
@@ -198,7 +204,7 @@ if command_noun == 'env'
     
   when 'add'
     result = api_get("api/add_env?app_name=#{app}&input=#{CGI::escape(command_argument)}")
-    if result[/\n/]
+    unless result == 'API Error'
       puts result
       exit
     else
@@ -240,8 +246,8 @@ if ARGV[0] == "option"
   if name
     if value
       result = api_get("api/option_set?app_name=#{app}&name=#{name}&val=#{value}")
-      if result[/SUCCESS/]
-        puts "Set option '#{name}' to '#{value}'"
+      unless result == 'API Error'
+        puts result
         exit
       else
         puts "Unable to set option"
@@ -251,7 +257,7 @@ if ARGV[0] == "option"
     else
       # no value given, get option list
       result = api_get("api/option_get?app_name=#{app}&name=#{name}")
-      if result[/\n/]
+      unless result == 'API Error'
         puts result
         exit
       else
