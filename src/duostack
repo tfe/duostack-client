@@ -126,19 +126,33 @@ if (!command_noun && ARGV.length == 0) || ARGV[0] == "help"
 Usage: #{$client} <command> [--app <appname>]
 
 General Commands:
-  create <app name>     Initialize a Git repository as a Duostack app
-  list                  Show all associated Duostack apps
-  version               Print version of this Duostack client
+  create <appname>       Initialize a Git repository as a Duostack app
+  list                   Show all associated Duostack apps
+  version                Print version of this Duostack client
 
 App Commands:
-  logs                  Retrieve server logs
-  restart               Restart your instances
-  ps                    List your instances and their statuses
-  destroy               Destroy Duostack app and associated data
+  logs                   Retrieve server logs
+  restart                Restart your instances
+  ps                     List your instances and their statuses
+  destroy                Destroy Duostack app and associated data
 
-App Commands - Ruby:
-  console               Connect to IRB/Rails console
-  rake <command>        Run a rake command
+  App Options:
+    option <name>        List possible values for option (with current starred)
+    option <name> <val>  Set an option to a value
+    
+    Available App Options:
+    stack                The Platform Stack your app will be deployed on
+
+  Environment Variables:
+    env list             List environment variables (abbreviated by default)
+    env list --long      List full environment variables (unabbreviated)
+    env add <name>=<val> Add variable(s), space-delimited for multiple
+    env remove <name>    Remove variable(s), space-delimited for multiple
+    env clear            Clear all environment variables
+
+  Ruby App Commands:
+    console              Connect to IRB/Rails console
+    rake <command>       Run a rake command
 
 EOF
   exit
@@ -281,7 +295,7 @@ end
 
 if ARGV[0] == "rake"
   if ARGV.length < 2
-    warn "#{$client}: try '#{$client} rake <command..>'"
+    warn "#{$client}: try '#{$client} rake <command>'"
     exit false
   end
   # Need this to go longer
