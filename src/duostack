@@ -209,7 +209,7 @@ if command_noun == 'env'
     truncate = !flags.delete('--long')
     result = api_get("api/list_envs?app_name=#{app}&truncate=#{truncate}")
     unless result == 'API Error'
-      puts result
+      print result
       exit
     else
       puts "Unable to list environment variables"
