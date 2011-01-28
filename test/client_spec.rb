@@ -71,16 +71,16 @@ describe "Duostack client" do
       end
       
       
-      describe "option commands" do
+      describe "config commands" do
       
-        it "should list options for stack" do
-          result = run_command("option stack --app #{@app_name}")
+        it "should list config options for stack" do
+          result = run_command("config stack --app #{@app_name}")
           result.should match("autodetect")
           result.should match("ruby-mri-1.9.2")
         end
       
-        it "should allow setting option for stack" do
-          result = run_command("option stack ruby-mri-1.9.2 --app #{@app_name}")
+        it "should allow setting config option for stack" do
+          result = run_command("config stack ruby-mri-1.9.2 --app #{@app_name}")
           result.should match("App will be migrated to ruby-mri-1.9.2 during next Git push.")
         end
       

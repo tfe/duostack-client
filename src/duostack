@@ -136,11 +136,11 @@ App Commands:
   ps                     List your instances and their statuses
   destroy                Destroy Duostack app and associated data
 
-  App Options:
-    option <name>        List possible values for option (with current starred)
-    option <name> <val>  Set an option to a value
+  App Configuration:
+    config <name>        List possible values for option (with current starred)
+    config <name> <val>  Set an option to a value
     
-    Available App Options:
+    Available App Configuration Options:
     stack                The Platform Stack your app will be deployed on
 
   Environment Variables:
@@ -253,7 +253,7 @@ if command_noun == 'env'
 end
 
 
-if ARGV[0] == "option"
+if ARGV[0] == "config"
   
   name, value = ARGV[1..2] # value will be nil if there is no ARGV[2]
   
@@ -264,7 +264,7 @@ if ARGV[0] == "option"
         puts result
         exit
       else
-        puts "Unable to set option"
+        puts "Unable to set config option"
         exit false
       end
       
@@ -275,13 +275,13 @@ if ARGV[0] == "option"
         puts result
         exit
       else
-        puts "Unable to get option"
+        puts "Unable to get config option"
         exit false
       end
     end
     
   else
-    warn "#{$client}: try '#{$client} define <option> <value>'"
+    warn "#{$client}: try '#{$client} config <name> <value>'"
     exit false
   end
   
