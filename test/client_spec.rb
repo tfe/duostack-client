@@ -85,7 +85,7 @@ describe "Duostack client" do
         end
       
         it "should reflect stack change upon re-push" do
-          `cd #{@app_path} && touch poke && git add poke && git ci -m "poke" && git push duostack master 2>&1`
+          `cd #{@app_path} && touch poke && git add poke && git commit -m "poke" && git push duostack master 2>&1`
           result = `expect #{File.dirname(__FILE__)}/console_test.expect #{@app_name} "IO.popen('ruby -v') { |f| puts f.gets }"`.gsub("\r", '')
           expected = <<-END.gsub(/^ {12}/, '').gsub("\r", '')
             spawn duostack console --app #{@app_name}
