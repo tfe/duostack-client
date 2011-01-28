@@ -60,7 +60,7 @@ end
 
 
 if ARGV.length > 0 && ARGV[0] == "version"
-  puts "0.0.9"
+  puts "0.0.10"
   exit
 end
 
