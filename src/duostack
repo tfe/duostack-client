@@ -125,34 +125,28 @@ if (!command_noun && ARGV.length == 0) || ARGV[0] == "help"
   puts <<-EOF
 Usage: #{$client} <command> [--app <appname>]
 
-General Commands:
-  create <appname>       Initialize a Git repository as a Duostack app
-  list                   Show all associated Duostack apps
-  version                Print version of this Duostack client
-
-App Commands:
-  logs                   Retrieve server logs
-  restart                Restart your instances
-  ps                     List your instances and their statuses
-  destroy                Destroy Duostack app and associated data
-
-  App Configuration:
-    config <name>        List possible values for option (with current starred)
-    config <name> <val>  Set an option to a value
-    
-    Available App Configuration Options:
-    stack                The Platform Stack your app will be deployed on
-
-  Environment Variables:
-    env list             List environment variables (abbreviated by default)
-    env list --long      List full environment variables (unabbreviated)
-    env add <name>=<val> Add variable(s), space-delimited for multiple
-    env remove <name>    Remove variable(s), space-delimited for multiple
-    env clear            Clear all environment variables
-
-  Ruby App Commands:
-    console              Connect to IRB/Rails console
-    rake <command>       Run a rake command
+General Commands:          
+  create <appname>          Initialize a Git repository as a Duostack app
+  list                      Show all associated Duostack apps
+  version                   Print version of this Duostack client
+                           
+App Commands:              
+  logs                      Retrieve server logs
+  restart                   Restart instances
+  ps                        List instances with current status
+  destroy                   Destroy Duostack app and associated data
+                           
+  config <name>             Show configuration option choices and selection
+  config <name> <val>       Set configuration option to a value
+                           
+  env list [--long]         List environment variables
+  env add <name>=<val>      Add environment variable
+  env remove <name>         Remove environment variable
+  env clear                 Clear all environment variables
+                           
+App Commands - Ruby:       
+  console                   Connect to IRB/Rails console
+  rake <command>            Run a Rake command
 
 EOF
   exit
