@@ -1,8 +1,107 @@
 #!/usr/bin/env ruby
-
-$client = File.basename(__FILE__)
-
 require 'cgi'
+
+module Duostack
+  class Client
+    
+    VERSION = '0.1'
+    
+    FLAGS = ['confirm', 'long']      # app is one too but gets special handling
+    
+    COMMANDS = {
+      :default => 'help',            # command used when no other command is given
+      :general => %w(version help),  # general commands, can always be run
+      :user    => %w(create list),   # commands requiring a credentials (first-time setup)
+      :app     => [                  # commands requiring an app to be specified (either by git inference or flag)
+        'logs',
+        'restart',
+        'ps',
+        'destroy',
+        'console',
+        'rake',
+        'config',
+        'env'
+      ],
+      :compound => [                 # mult-part commands that expect subsequent arguments, must validate extra args on their own
+        'rake',
+        'config',
+        'env'
+      ]
+    }
+    
+    def initialize(args=[], client='duostack')
+      @args = args
+      @client = client
+    end
+    
+    def run
+      @app_name = parse_app # first pass at getting app. will also try git repo inference later.
+      @flags    = parse_flags
+      @command  = @args.shift || COMMANDS[:default]
+      
+      validate_args
+    end
+    
+    # app is special because it's a flag with the next arg containing the app name
+    # generally we want to pull this first
+    def parse_app
+      if app_index = @args.index('--app')
+        # slice out app args so we don't re-use them later, returning second element.
+        # will be nil if no app name is passed after --app; that's okay.
+        @args.slice!(app_index, 2)[1]
+      end
+    end
+    
+    # extracts and validates any argument starting with '--', indicating a flag
+    def parse_flags
+      
+      # extract flags
+      flags = @args.collect do |arg|
+        arg[2..-1] if arg[0..1] == '--'
+      end.compact
+      
+      # remove flags from args
+      @args.delete_if { |arg| arg[0..1] == '--' }
+      
+      return flags
+    end
+    
+    # ensures that the command and all extracted flags are what we expect, warns if they aren't
+    def validate_args
+      
+      invalid = []
+      invalid += [@command] - COMMANDS.values.flatten   # validate command
+      invalid += @flags - FLAGS                          # validate flags
+      
+      # unless command is compound (expecting further args), any remaining args must be invalid
+      invalid += @args unless COMMANDS[:compound].include?(@command)
+      
+      if invalid.any?
+        exit_with("unrecognized argument: '#{invalid.first}', run '#{@client} help' for usage")
+      end
+    end
+    
+    
+    # utility methods
+    #########################################################################
+    
+    def debug(message)
+      puts message if ENV['DSDEBUG']
+    end
+    
+    def exit_with(message='error', code=false)
+      warn "#{@client}: #{message}"
+      exit code
+    end
+    
+  end
+end
+
+
+Duostack::Client.new(ARGV.dup, File.basename(__FILE__)).run
+
+
+exit
 
 
 # parse app name out of arguments
