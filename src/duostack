@@ -4,7 +4,7 @@ require 'cgi'
 module Duostack
   class Client
     
-    VERSION = '0.1'
+    VERSION = '0.1.0'
     
     FLAGS = ['confirm', 'long']      # app is one too but gets special handling
     
@@ -35,12 +35,25 @@ module Duostack
     end
     
     def run
-      @app_name = parse_app # first pass at getting app. will also try git repo inference later.
+      @app_name = parse_app # attempt to get app from args. will also try git repo inference later.
       @flags    = parse_flags
       @command  = @args.shift || COMMANDS[:default]
       
-      validate_args
+      # we consider this run to be confirmed if the app name has been specified in the args and the --confirm flag is passed
+      @confirmed = @app_name && @flags.include?('confirm')
+      
+      # make sure everything is in order
+      validate_args                                       # checks for extraneous args and valid command
+      require_app if COMMANDS[:app].include?(@command)    # checks that user is set and app can be ID'd
+      require_user if COMMANDS[:user].include?(@command)  # checks user credentials
+      
+      # everything checks out; time to rock and roll
+      send(@command)
     end
+    
+    
+    # argument processing methods
+    #########################################################################
     
     # app is special because it's a flag with the next arg containing the app name
     # generally we want to pull this first
@@ -82,15 +95,115 @@ module Duostack
     end
     
     
+    # validation methods
+    #########################################################################
+    
+    # ensures the app can be identified from inspecting the git repo or command line args
+    def require_app
+      require_user # all app commands require a user
+      @app_name ||= extract_app_name
+      unless @app_name
+        exit_with "run this command from a Duostack app folder or pass an app name with the --app argument"
+      end
+      return @app_name
+    end
+    
+    # ensures user credentials are cached
+    def require_user
+      require_ssh_key # all user commands require an SSH key
+      
+      @credentials ||= `cat ~/.duostack 2>/dev/null`.chomp
+      if @credentials.empty? || @credentials[/redirected/]
+        puts "First-time Duostack client setup"
+        print "Email Address: "
+        input_username = $stdin.gets.chomp
+        ssh_key = `cat #{@ssh_key}`.chomp
+        puts `bash -c 'read -sp "Password: " passwd; echo $passwd > ~/.duostack2'`
+        input_password = CGI::escape(`cat ~/.duostack2`.chomp)
+        `rm -f ~/.duostack2`
+        `curl -m 5 '#{api_host}/api/get_token?api_username=#{CGI::escape(input_username)}&api_password=#{input_password}&ssh_key=#{CGI::escape(ssh_key)}' -o ~/.duostack -s 2>&1 >/dev/null`
+        @credentials = `cat ~/.duostack 2>/dev/null`.chomp
+        if @credentials.empty? || @credentials[/redirected/] || @credentials.length != 32
+          `rm -f ~/.duostack`
+          exit_with "authentication error, please try again or contact support@duostack.com"
+        end
+        `echo 'api_username=#{CGI::escape(input_username)}&api_token=#{$credentials}' > ~/.duostack`
+        @credentials = `cat ~/.duostack 2>/dev/null`.chomp
+        puts "Completed initial setup... waiting for sync..."
+        sleep 4 # TODO: Do a sync check here in the future, 4 secs is safe for now
+        puts ""
+      end
+      
+      return @credentials
+    end
+    
+    def require_ssh_key
+      @ssh_key ||= extract_ssh_key
+      unless @ssh_key
+        exit_with "an SSH key is required to run this command, please generate an SSH key and try again (http://docs.duostack.com/command-line-client#setup)"
+      end
+      return @ssh_key
+    end
+    
+    
+    
+    # command methods
+    #########################################################################
+    
+    def version
+      puts VERSION
+    end
+    
+    def help
+      puts 'i am the help'
+    end
+    
+    
     # utility methods
     #########################################################################
+    
+    def extract_app_name
+      name = `git remote -v 2>&1 | grep -m1 git@duostack.net | grep ".git" | cut -f 2 -d: | cut -f 1 -d.`.chomp
+      return name.empty? ? nil : name # ensures nil gets returned instead of an empty string
+    end
+    
+    def extract_ssh_key
+      if `file ~/.ssh/id_rsa.pub`[/text|key/]
+        '~/.ssh/id_rsa.pub'
+      elsif `file ~/.ssh/id_dsa.pub`[/text|key/]
+        '~/.ssh/id_dsa.pub'
+      elsif `file ~/.ssh/identity.pub`[/text|key/]
+        '~/.ssh/identity.pub'
+      else
+        nil
+      end
+    end
+    
+    def api_host
+      @api_host ||= begin
+        host = "https://duostack.duostack.net"
+        if !`curl -V`[/SSL/]
+          warn_with "WARNING! curl SSL support is missing, using insecure plaintext mode"
+          host = "http://duostack.duostack.net"
+        end
+        if ENV['DSLOCAL']
+          puts "Internal development mode"
+          host = "http://localhost:3000"
+        end
+        host
+      end
+    end
     
     def debug(message)
       puts message if ENV['DSDEBUG']
     end
     
-    def exit_with(message='error', code=false)
+    def warn_with(message='error')
       warn "#{@client}: #{message}"
+    end
+    
+    def exit_with(message=nil, code=false)
+      warn_with message
       exit code
     end
     
@@ -101,24 +214,15 @@ end
 Duostack::Client.new(ARGV.dup, File.basename(__FILE__)).run
 
 
+
+###############################################################################################
+###############################################################################################
+###############################################################################################
+###############################################################################################
+###############################################################################################
+
+
 exit
-
-
-# parse app name out of arguments
-app = if app_index = ARGV.index('--app')
-  app_name_source = :flag
-  # slice out app args so we don't re-use them later, returning second element.
-  # will be nil if no app name is passed after --app; that's okay.
-  ARGV.slice!(app_index, 2)[1]
-else
-  app_name_source = :git_remote
-  # fall back to parsing out of duostack git remote
-  `git remote -v 2>&1 | grep -m1 git@duostack.net | grep ".git" | cut -f 2 -d: | cut -f 1 -d.`.chomp
-end
-
-# pull flags out of arguments (has to happen after app flag is extracted)
-flags = ARGV.select { |arg| arg[0..1] == '--' }
-ARGV.delete_if { |arg| flags.include?(arg) }
 
 # parse out confirmedness
 $confirmed = app_name_source == :flag && flags.delete('--confirm')
@@ -158,53 +262,8 @@ command_noun, command_verb, command_argument = [nil]*3
 end
 
 
-if ARGV.length > 0 && ARGV[0] == "version"
-  puts "0.0.10"
-  exit
-end
 
-if `file ~/.ssh/id_rsa.pub`[/text|key/]
-  idfile = '~/.ssh/id_rsa.pub'
-elsif `file ~/.ssh/id_dsa.pub`[/text|key/]
-  idfile = '~/.ssh/id_dsa.pub'
-elsif `file ~/.ssh/identity.pub`[/text|key/]
-  idfile = '~/.ssh/identity.pub'
-else
-  warn "#{$client}: generate an SSH key before running this client"
-  exit false
-end
 
-$api_host = "https://duostack.duostack.net"
-if !`curl -V`[/SSL/]
-  $api_host = "http://duostack.duostack.net"
-  warn "#{$client}: insecure plaintext mode because curl SSL support is missing"
-end
-$api_host = "http://localhost:3000" if ENV['DSLOCAL']
-puts "Internal development mode" if ENV['DSLOCAL']
-
-$credentials=`cat ~/.duostack 2>/dev/null`.chomp
-if $credentials.empty? || $credentials[/redirected/]
-  puts "First-time Duostack client setup"
-  print "Email Address: "
-  input_username = $stdin.gets.chomp
-  ssh_key = `cat #{idfile}`.chomp
-  puts `bash -c 'read -sp "Password: " passwd; echo $passwd > ~/.duostack2'`
-  input_password = CGI::escape(`cat ~/.duostack2`.chomp)
-  `rm -f ~/.duostack2`
-  `curl -m 5 "#{$api_host}/api/get_token?api_username=#{CGI::escape(input_username)}&api_password=#{input_password}&ssh_key=#{CGI::escape(ssh_key)}" -o ~/.duostack -s 2>&1 >/dev/null`
-  $credentials=`cat ~/.duostack 2>/dev/null`.chomp
-  if $credentials.empty? || $credentials[/redirected/] || $credentials.length != 32
-    puts "Authentication error, please try again"
-    `rm -f ~/.duostack`
-    exit false
-  end
-  `echo 'api_username=#{CGI::escape(input_username)}&api_token=#{$credentials}' > ~/.duostack`
-  $credentials=`cat ~/.duostack 2>/dev/null`.chomp
-  puts "Completed initial setup... waiting for sync..."
-  # Do a sync check here in the future, 4 secs is safe for now
-  sleep 4
-  puts ""
-end
 
 def api_get(url)
   debug = `echo curl -m 30 -w '\n%{http_code}' "#{$api_host}/#{url}&#{$credentials}" -sf`
@@ -289,11 +348,6 @@ end
 
 
 
-# anything beyond this point is an app command, so require the app to be specified
-if app.nil? or app.empty?
-  warn "#{$client}: run this command from a Duostack app folder or pass an app name with the --app argument"
-  exit false  
-end
 
 if command_noun == 'env'
   
@@ -460,3 +514,4 @@ end
 
 puts "#{$client}: for usage, run '#{$client}' without arguments"
 exit false
+
