@@ -5,6 +5,7 @@ module Duostack
   class Client
     
     VERSION = '0.1.0'
+    USER_AGENT = "duostack-#{VERSION}"
     
     FLAGS = ['confirm', 'long']      # app is one too but gets special handling
     
@@ -23,6 +24,7 @@ module Duostack
         'env'
       ],
       :compound => [                 # mult-part commands that expect subsequent arguments, must validate extra args on their own
+        'create',
         'rake',
         'config',
         'env'
@@ -94,6 +96,18 @@ module Duostack
       end
     end
     
+    def get_next_args(qty=0, message="missing required argument(s), run '#{@client} help'")
+      next_args = @args.shift(qty)
+      
+      # make sure we got as many args as the caller wanted
+      exit_with message unless next_args.length == qty
+      
+      # de-arrayify if only one
+      next_args = next_args.first if next_args.length == 1
+      
+      return next_args
+    end
+    
     
     # validation methods
     #########################################################################
@@ -127,7 +141,7 @@ module Duostack
           `rm -f ~/.duostack`
           exit_with "authentication error, please try again or contact support@duostack.com"
         end
-        `echo 'api_username=#{CGI::escape(input_username)}&api_token=#{$credentials}' > ~/.duostack`
+        `echo 'api_username=#{CGI::escape(input_username)}&api_token=#{@credentials}' > ~/.duostack`
         @credentials = `cat ~/.duostack 2>/dev/null`.chomp
         puts "Completed initial setup... waiting for sync..."
         sleep 4 # TODO: Do a sync check here in the future, 4 secs is safe for now
@@ -145,17 +159,12 @@ module Duostack
       return @ssh_key
     end
     
-    
-    
-    # command methods
-    #########################################################################
-    
-    def version
-      puts VERSION
-    end
-    
-    def help
-      puts 'i am the help'
+    def require_confirmation
+      # NOTE: @confirmed is set above in 'run' so we can be assured the app_name came from the --app flag
+      # if assessed confirmation here, the app could have been extracted from the git repo
+      unless @confirmed
+        exit_with "command requires confirmation, run again with '--confirm --app <appname>'"
+      end
     end
     
     
@@ -194,6 +203,43 @@ module Duostack
       end
     end
     
+    def api_get(endpoint, params=nil, timeout=20)
+      
+      url = "#{api_host}/api/#{endpoint}?#{@credentials}"
+      
+      url += "&app_name=#{@app_name}" if @app_name
+      url += "&#{params}" if params
+      
+      curl_get(url, timeout)
+    end
+    
+    def curl_get(url, timeout=nil)
+      command = "curl -sf -A '#{USER_AGENT}' -w '\n%{http_code}' '#{url}'" # use w flag to append http status code
+      command += " -m #{timeout}" if timeout
+      raw = `#{command}`
+      
+      debug command
+      debug raw
+      
+      # break apart the raw result and extract the HTTP status code, reassemble
+      parts = raw.split("\n")
+      status = parts.pop.to_i
+      result = parts.join("\n")
+      
+      # handle 422 codes specially
+      # TODO: do this better
+      return result if status == 422
+      
+      case (status / 100) # e.g. any 4xx code will become 4
+      when 2 # success, return result sans status code
+        return result
+      when 1, 3, 4, 5 # the server is doing something dumb (500 error, redirect, 404s)
+        exit_with "Duostack API error, please try again or contact support@duostack.com"
+      else
+        exit_with "could not connect to Duostack API"
+      end
+    end
+    
     def debug(message)
       puts message if ENV['DSDEBUG']
     end
@@ -207,81 +253,18 @@ module Duostack
       exit code
     end
     
-  end
-end
-
-
-Duostack::Client.new(ARGV.dup, File.basename(__FILE__)).run
-
-
-
-###############################################################################################
-###############################################################################################
-###############################################################################################
-###############################################################################################
-###############################################################################################
-
-
-exit
-
-# parse out confirmedness
-$confirmed = app_name_source == :flag && flags.delete('--confirm')
-def require_confirmation
-  unless $confirmed
-    warn "#{$client}: command requires confirmation, run again with '--confirm --app <appname>'"
-    exit false
-  end
-end
-
-# parse out CRUD commands (two-part commands)
-command_noun, command_verb, command_argument = [nil]*3
-['env'].each do |command_candidate|
-  
-  # look for any instances of CRUD commands
-  if command_index = ARGV.index(command_candidate)
-    command_noun = command_candidate
-    command_verb = if %w(add remove rm list ls clear).include?(ARGV[command_index+1])
-      ARGV[command_index+1]
-    else
-      'list' # default command
+    
+    
+    # command methods
+    #########################################################################
+    
+    def version
+      puts VERSION
     end
-    command_argument = if %w(add remove rm).include?(command_verb)
-      # takes all following arguments. recompose strings because ruby strips out quotation marks in the args.
-      ARGV[(command_index+2)..-1].collect do |arg|
-        if arg.include?('=')
-          result = arg.split('=',2)
-          %Q(#{result[0]}="#{result[1].gsub('"', '\"')}")
-        else
-          arg
-        end
-      end.join(' ')
-    end
-    ARGV.slice!(command_index..-1) # clear args we've handled out of array
-    break
-  end
-end
-
-
-
-
-
-def api_get(url)
-  debug = `echo curl -m 30 -w '\n%{http_code}' "#{$api_host}/#{url}&#{$credentials}" -sf`
-  result = `curl -m 30 -w '\n%{http_code}' "#{$api_host}/#{url}&#{$credentials}" -sf`
-  debug += result
-  puts debug if ENV['DSDEBUG']
-  
-  result = result.split("\n")
-  if result.last != '200'
-    return "API Error"
-  else
-    return result[0..-2].join("\n")
-  end
-end
-
-if (!command_noun && ARGV.length == 0) || ARGV[0] == "help"
-  puts <<-EOF
-Usage: #{$client} <command> [--app <appname>]
+    
+    def help
+      puts <<-EOF
+Usage: #{@client} <command> [--app <appname>]
 
 General Commands:          
   create <appname>          Initialize a Git repository as a Duostack app
@@ -304,214 +287,227 @@ App Commands:
                            
 App Commands - Ruby:       
   console                   Connect to IRB/Rails console
-  rake <command>            Run a Rake command
+  rake [<command>]          Run a Rake command
 
 EOF
-  exit
-end
-
-if ARGV[0] == "list"
-  result = api_get("api/list_apps?1")
-  unless result == 'API Error'
-    puts result
-    exit
-  else
-    warn "#{$client}: no apps found"
-    exit false
-  end
-end
-
-if ARGV[0] == "create"
-  if ARGV.length < 2
-    warn "#{$client}: try '#{$client} create <app name>'"
-    exit false
-  end
-  if `git status 2>&1`[/Not a git/]
-    warn "#{$client}: initialize Git repository before using create"
-    exit false
-  end
-  if !app.empty?
-    warn "#{$client}: this repository is already initialized for Duostack"
-    exit false
-  end
-  # check if remote duostack already exists in the future
-  if api_get("api/create_app?app_name=#{CGI::escape(ARGV[1].downcase)}")[/SUCCESS/]
-    `git remote add duostack git@duostack.net:#{CGI::escape(ARGV[1].downcase)}.git`
-    puts "Duostack initialized. To push: git push duostack master"
-    exit
-  else
-    puts "This app name is unavailable. Please try another."
-    exit false
-  end
-end
-
-
-
-
-
-if command_noun == 'env'
-  
-  case command_verb
-  when 'list', 'ls'
-    truncate = !flags.delete('--long')
-    result = api_get("api/list_envs?app_name=#{app}&truncate=#{truncate}")
-    unless result == 'API Error'
-      print result
-      exit
-    else
-      puts "Unable to list environment variables"
-      exit false
     end
     
-  when 'add'
-    result = api_get("api/add_env?app_name=#{app}&input=#{CGI::escape(command_argument)}")
-    unless result == 'API Error'
-      puts result
-      exit
-    else
-      puts "Unable to add environment variable(s)"
-      exit false
+    
+    def list
+      puts api_get('list_apps')
     end
     
-  when 'remove', 'rm'
-    result = api_get("api/remove_env?app_name=#{app}&name=#{CGI::escape(command_argument)}")
-    if result[/SUCCESS/]
-      puts "Environment variable(s) removed"
-      exit
-    else
-      puts "Unable to remove environment variable(s)"
-      exit false
-    end
     
-  when 'clear'
-    require_confirmation
-    
-    result = api_get("api/clear_envs?app_name=#{app}")
-    if result[/SUCCESS/]
-      puts "Environment variables cleared"
-      exit
-    else
-      puts "Unable to clear environment variables"
-      exit false
-    end
-  else
-    exit false # this shouldn't happen
-  end
-end
-
-
-if ARGV[0] == "config"
-  
-  name, value = ARGV[1..2] # value will be nil if there is no ARGV[2]
-  
-  if name
-    if value
-      result = api_get("api/option_set?app_name=#{app}&name=#{name}&val=#{value}")
-      unless result == 'API Error'
-        puts result
-        exit
-      else
-        puts "Unable to set config option"
-        exit false
+    def create
+      
+      # ensure new app name passed, clean up
+      name = get_next_args(1, "app name is required, try '#{@client} create <appname>'")
+      name = CGI::escape(name.downcase)
+      
+      # ensure git repo
+      if `git status 2>&1`[/Not a git/]
+        exit_with "current directory is not a Git repository, run 'git init' first"
       end
       
-    else
-      # no value given, get option list
-      result = api_get("api/option_get?app_name=#{app}&name=#{name}")
-      unless result == 'API Error'
-        puts result
-        exit
+      # ensure no existing duostack remote
+      if extract_app_name
+        exit_with "current directory already initialized for Duostack, remove any Git remotes referencing Duostack first"
+      end
+      
+      # create!
+      # TODO: ensure there is not already a remote named duostack
+      if api_get('create_app', "app_name=#{name}")[/SUCCESS/]
+        `git remote add duostack git@duostack.net:#{name}.git`
+        puts "Duostack initialized, to push: 'git push duostack master'"
       else
-        puts "Unable to get config option"
-        exit false
+        exit_with "app could not be created, please check that app name is valid and available"
       end
     end
     
-  else
-    warn "#{$client}: try '#{$client} config <name> <value>'"
-    exit false
-  end
-  
-end
-
-
-if ARGV[0] == "console"
-  exec(".duostack-console-expect #{app}")
-  exit
-end
-
-if ARGV[0] == "rake"
-  if ARGV.length < 2
-    warn "#{$client}: try '#{$client} rake <command>'"
-    exit false
-  end
-  # Need this to go longer
-  result = `curl -m 60 "#{$api_host}/api/run_rake?app_name=#{app}&command=#{CGI::escape(ARGV[1,999].join(' '))}&#{$credentials}" -s`
-  if result[/\n/]
-    puts result
-    exit
-  else
-    puts "Unable to run rake task"
-    exit false
-  end
-end
-
-if ARGV[0] == "restart"
-  get_log = api_get("api/restart?app_name=#{app}")
-  if get_log[/SUCCESS/]
-    puts "App restarted"
-    exit
-  else
-    puts "Unable to restart app"
-    exit false
-  end
-end
-
-if ARGV[0] == "logs"
-  get_log = api_get("api/get_logs?app_name=#{app}")
-  if get_log[/\.log/]
-    puts get_log
-    exit
-  else
-    warn "#{$client}: no logs found"
-    exit false
-  end
-end
-
-if ARGV[0] == "ps"
-  result = api_get("api/get_instances?app_name=#{app}")
-  if result[/Instance ID|Status/]
-    puts result
-    exit
-  else
-    warn "#{$client}: unable to get instances"
-    exit false
-  end
-end
-
-if ARGV[0] == "destroy"
-  
-  require_confirmation
-  
-  remote = `git remote show duostack 2>/dev/null`     # pull out remote name before we destroy
-  result = api_get("api/delete_app?app_name=#{app}")  # destroy
-  
-  if result[/SUCCESS/]
-    # attempt to remove duostack git remote
-    # only if "duostack" remote actually references this app's remote
-    if !remote.empty? and remote.scan("git@duostack.net:#{app}.git").length > 0
-      `git remote rm duostack 2>/dev/null`
+    
+    def logs
+      result = api_get('get_logs')
+      if result[/\.log/]
+        puts result
+      else
+        exit_with "no logs found"
+      end
     end
     
-    puts "App destroyed"
-    exit
-  else
-    puts "Unable to destroy app"
-    exit false
+    
+    def restart
+      if api_get('restart')[/SUCCESS/]
+        puts "App restarted"
+      else
+        exit_with "unable to restart app"
+      end
+    end
+    
+    
+    def ps
+      result = api_get('get_instances')
+      if result[/Instance ID|Status/]
+        puts result
+      else
+        exit_with "unable to get instances"
+      end
+    end
+    
+    
+    def destroy
+      require_confirmation
+      
+      # pull out remote name before we destroy
+      remote = `git remote show duostack 2>/dev/null`
+      
+      # destroy!
+      if api_get("delete_app")[/SUCCESS/]
+        # attempt to remove duostack git remote
+        # only if "duostack" remote actually references this app's remote
+        if !remote.empty? and remote.scan("git@duostack.net:#{app}.git").length > 0
+          `git remote rm duostack 2>/dev/null`
+        end
+        
+        puts "App destroyed"
+        
+      else
+        exit_with "unable to destroy app, please try again or contact support@duostack.com"
+      end
+    end
+    
+    
+    def console
+      exec(".duostack-console-expect #{@app_name}")
+    end
+    
+    
+    def rake
+      
+      # get command(s), if they exist (all remaining args), clean up
+      command = @args.join(' ')
+      command = CGI::escape(command)
+      
+      result = api_get('run_rake', "command=#{command}", 60)
+      
+      if result[/\n/]
+        puts result
+      else
+        exit_with "unable to run rake task, please try again or contact support@duostack.com"
+      end
+    end
+    
+    
+    def config
+      
+      name  = get_next_args(1, "option name is required, try '#{@client} config <name> [<value>]'")
+      value = @args.shift
+      
+      name  = CGI::escape(name)
+      value = CGI::escape(value) if value
+      
+      if value # value provided, set config
+        result = api_get('option_set', "name=#{name}&val=#{value}")
+        if result[/\n/]
+          puts result
+        else
+          exit_with "unable to set config option"
+        end
+        
+      else # no value provided, get config
+        result = api_get('option_get', "name=#{name}")
+        if result[/\n/]
+          puts result
+        else
+          exit_with "unable to set config option"
+        end
+      end
+    end
+    
+    
+    # TODO: generalize this, because there will be other CRUD commands in the future
+    def env
+      
+      # get command
+      command = @args.shift
+      command ||= 'list' # list is the default
+      
+      # ensure command is valid
+      unless %w(add remove rm list ls clear).include?(command)
+        exit_with "invalid argument for 'env', try list, add, remove, or clear"
+      end
+      
+      # ensure we have an argument for add/remove commands which require it
+      if %w(add remove rm).include?(command)
+        # gather up and compose subsequent args for add/remove operations
+        # takes all remaining arguments. recompose strings because ruby strips out quotation marks in the args.
+        argument = @args.collect do |arg|
+          if arg.include?('=')
+            result = arg.split('=',2)
+            %Q(#{result[0]}="#{result[1].gsub('"', '\"')}")
+          else
+            arg
+          end
+        end.join(' ')
+        @args.clear # clean up, since we processed every remaining arg
+        
+        # warn and exit unless we have an argument to pass
+        if argument.empty?
+          case command
+          when 'add'
+            exit_with "'env add' requires an argument, try 'env add <name>=<value>'"
+          when 'remove', 'rm'
+            exit_with "'env #{command}' requires an argument, try 'env #{command} <name>'"
+          end
+        end
+        
+        # clean up argument
+        argument = CGI::escape(argument)
+      end
+      
+      # finally, process command
+      case command
+      when 'list', 'ls'
+        truncate = !@flags.include?('long')
+        result = api_get("list_envs", "truncate=#{truncate}")
+        unless result == 'API Error'
+          print result
+        else
+          exit_with "unable to list environment variables"
+        end
+      
+      when 'add'
+        result = api_get("add_env", "input=#{argument}")
+        unless result == 'API Error'
+          puts result
+        else
+          exit_with "unable to add environment variable(s)"
+        end
+      
+      when 'remove', 'rm'
+        result = api_get("remove_env", "name=#{argument}")
+        if result[/SUCCESS/]
+          puts "Environment variable(s) removed"
+        else
+          exit_with "unable to remove environment variable(s)"
+        end
+      
+      when 'clear'
+        require_confirmation
+        
+        result = api_get("clear_envs")
+        if result[/SUCCESS/]
+          puts "Environment variables cleared"
+        else
+          exit_with "unable to clear environment variables"
+        end
+      else
+        exit false # this shouldn't happen
+      end
+      
+    end
+    
   end
-
 end
 
-puts "#{$client}: for usage, run '#{$client}' without arguments"
-exit false
 
+Duostack::Client.new(ARGV.dup, File.basename(__FILE__)).run
