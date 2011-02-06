@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 require 'cgi'
+$client = File.basename(__FILE__)
 
 module Duostack
   class Client
@@ -24,6 +25,7 @@ module Duostack
         'env'
       ],
       :compound => [                 # mult-part commands that expect subsequent arguments, must validate extra args on their own
+        'help',
         'create',
         'rake',
         'config',
@@ -263,33 +265,11 @@ module Duostack
     end
     
     def help
-      puts <<-EOF
-Usage: #{@client} <command> [--app <appname>]
-
-General Commands:          
-  create <appname>          Initialize a Git repository as a Duostack app
-  list                      Show all associated Duostack apps
-  version                   Print version of this Duostack client
-                           
-App Commands:              
-  logs                      Retrieve server logs
-  restart                   Restart instances
-  ps                        List instances with current status
-  destroy                   Destroy Duostack app and associated data
-                           
-  config <name>             Show configuration option choices and selection
-  config <name> <val>       Set configuration option to a value
-                           
-  env list [--long]         List environment variables
-  env add <name>=<val>      Add environment variable
-  env remove <name>         Remove environment variable
-  env clear                 Clear all environment variables
-                           
-App Commands - Ruby:       
-  console                   Connect to IRB/Rails console
-  rake [<command>]          Run a Rake command
-
-EOF
+      if content = Help.read_section(@args.shift)
+        puts content
+      else
+        exit_with "unrecognized help section, try '#{@client} help'"
+      end 
     end
     
     
@@ -399,7 +379,7 @@ EOF
     
     def config
       
-      name  = get_next_args(1, "option name is required, try '#{@client} config <name> [<value>]'")
+      name  = get_next_args(1, "option name is required, try '#{@client} config <name> [<setting>]'")
       value = @args.shift
       
       name  = CGI::escape(name)
@@ -506,8 +486,296 @@ EOF
       
     end
     
+    
+    
+    module Help
+      
+      # available help sections. first will be used as the default.
+      SECTIONS = %w(help create list version logs restart ps destroy config env console rake)
+      
+      class << self
+        
+        def read_section(section)
+          
+          # use default if not set
+          section ||= SECTIONS.first
+          
+          # validate section exists
+          return false unless SECTIONS.include?(section)
+          
+          self.send(section).gsub(/\n\s{12}/, "\n") # strips leading spaces so we can keep these indented
+        end
+        
+        def help
+          <<-EOF
+            
+            Usage: #{$client} <command> [<args>] [--app <appname>]
+            
+            The most common commands are listed below.
+            For additional information on any of them, run: #{$client} help <command>
+            
+            General Commands:
+              help [<command>]          Show this help, or detailed help on <command>
+              create <appname>          Initialize a Git repository as a Duostack App
+              list                      Show all associated Duostack Apps
+              version                   Show version of this Duostack client
+            
+            App Commands:
+              logs                      Retrieve server logs
+              restart                   Restart instances
+              ps                        List instances with current status
+              destroy                   Destroy Duostack App and associated data
+              config <name> [<setting>] Show or set configuration options
+              env [<operation>]         Manage environment variables
+            
+            App Commands - Ruby:
+              console                   Connect to IRB/Rails console
+              rake [<command>]          Run a Rake command
+            
+          EOF
+        end
+        
+        def create
+          <<-EOF
+            
+            Usage: #{$client} create <appname>
+            
+            Arguments:
+              <appname>       A name for your app (restrictions apply, see below)
+            
+            Creates a new Duostack App from the current directory with the given name.
+            
+            The current directory must be initialized as a Git repository (run 'git init').
+            Upon running 'create', the app will be created on Duostack and a Git remote with
+            the name 'duostack' will be added to the local repository, which you can push to
+            to deploy your app: git push duostack master.
+            
+            The app name must be 4-16 characters long, alphanumeric, and must not start with
+            a number. The use of hyphens, underscores, or any other special characters is
+            not supported.
+            
+          EOF
+        end
+        
+        def list
+          <<-EOF
+            
+            Usage: #{$client} list
+            
+            Shows a list of the apps associated with your Duostack account.
+            
+          EOF
+        end
+        
+        def version
+          <<-EOF
+            
+            Usage: #{$client} version
+            
+            Displays the client's version number.
+            
+          EOF
+        end
+        
+        def logs
+          <<-EOF
+            
+            Usage: #{$client} logs [--app <appname>]
+            
+            Retreives aggregate logs from all of the app's instances.
+            
+            The app to operate on is determined first from the command line '--app' flag, or
+            if none is specified, by looking for a Git remote in the current folder that
+            references Duostack.
+            
+          EOF
+        end
+        
+        def restart
+          <<-EOF
+            
+            Usage: #{$client} restart [--app <appname>]
+            
+            Restarts all the app's instances. This will cause the app to pick up any changes
+            to its configuration options or environment variables made with the 'config' or
+            'env' commands. Apps are automatically restarted after each Git push.
+            
+            The app to operate on is determined first from the command line '--app' flag, or
+            if none is specified, by looking for a Git remote in the current folder that
+            references Duostack.
+            
+          EOF
+        end
+        
+        def ps
+          <<-EOF
+            
+            Usage: #{$client} ps [--app <appname>]
+            
+            Retreives a listing of all the app's instances with status information (uptime)
+            for each.
+            
+            The app to operate on is determined first from the command line '--app' flag, or
+            if none is specified, by looking for a Git remote in the current folder that
+            references Duostack.
+            
+          EOF
+        end
+        
+        def destroy
+          <<-EOF
+            
+            Usage: #{$client} destroy [--app <appname>] [--confirm]
+            
+            Destroys the app and all associated data. Can not be undone; use with caution.
+            
+            Requires confirmation.
+            
+            The app to operate on is determined first from the command line '--app' flag, or
+            if none is specified, by looking for a Git remote in the current folder that
+            references Duostack.
+            
+          EOF
+        end
+        
+        def config
+          <<-EOF
+            
+            Usage:
+              #{$client} config [--app <appname>]                     list configs
+              #{$client} config <name> [--app <appname>]              show config
+              #{$client} config <name> <setting> [--app <appname>]    set config
+            
+            Lists, shows, and sets app config options.
+            
+            List Configs: Shows a list of all available config option names with their
+            current settings.
+            
+            Show Config: Shows a list of the valid settings for the config option <name>.
+            <name> must be one of the available options shown in the list of configs. The
+            currently selected value is denoted with an asterisk next to it.
+            
+            Set Config: Allows setting of config options. Sets config <name> to <setting>.
+            <setting> must be one of the valid settings shown for this config.
+            
+            The app to operate on is determined first from the command line '--app' flag, or
+            if none is specified, by looking for a Git remote in the current folder that
+            references Duostack.
+
+            
+            Usage: #{$client} config [--app <appname>]
+            
+            Shows a list of all available config option names with their current settings.
+            
+            Usage: #{$client} config <name> [--app <appname>]
+            
+            Shows a list of the valid values for the config option with name <name>. <name>
+            must be one of the available options shown in the list of names when running
+            'config' with no arguments. The currently selected value is denoted with an
+            asterisk next to it.
+            
+            Usage: #{$client} config <name> <setting> [--app <appname>]
+            
+            
+            
+            
+            
+            
+            Usage:
+              1. #{$client} config [--app <appname>]                   list configs
+              2. #{$client} config <name> [--app <appname>]            show config
+              3. #{$client} config <name> <setting> [--app <appname>]  set config
+            
+            Arguments:
+              <name>     name of the config option to show/set, must be one of the available
+                         configs shown in the list from '#{$client} config'
+              <setting>  setting to set for config option <name>, must be one of the valid
+                         settings shown in the list from '#{$client} config <name>'
+            
+            Lists, shows, and sets app config options.
+            
+            Running 'config' with no arguments will list all available config options with
+            their current settings.
+            
+            Running 'config <name>' will display a list of 
+            
+          EOF
+        end
+        
+        def env
+          <<-EOF
+            
+            Usage:
+              #{$client} env [--long] [--app <appname>]                 list env vars
+              #{$client} env add <name>=<value> [--app <appname>]       add env var
+              #{$client} env remove <name> [--app <appname>]            remove env var
+              #{$client} env clear [--app <appname>] [--confirm]        clear env vars
+            
+            Lists, adds, removes, and clears app environment variables.
+            
+            List: Lists environment variables currently set on the app. If none are set,
+            output will be blank. List output is abbreviated by default for readability. If
+            you need to see the full values of your environment variables, use the --long
+            flag with this command.
+            
+            Add: Add one or more environment variables to the app. Add multiple by
+            supplying additional <name>=<value> pairs separated by spaces. You may need to 
+            quote any complex values (with spaces or special characters) that may confuse
+            the client or your shell.
+            
+            Remove: Removes one or more environment variables from the app. Remove multiple
+            by supplying additional variable <name> arguments separated by spaces.
+            
+            Clear: Clears all environment variables from the app. Requires confirmation.
+            
+            The app to operate on is determined first from the command line '--app' flag, or
+            if none is specified, by looking for a Git remote in the current folder that
+            references Duostack.
+            
+          EOF
+        end
+        
+        def console
+          <<-EOF
+            
+            Usage: #{$client} console [--app <appname>]
+            
+            Launches an interactive IRB/console session with your app. You can use this to
+            make any action you would normally make in your app's console.
+            
+            Applicable only to Ruby applications.
+            
+            The app to operate on is determined first from the command line '--app' flag, or
+            if none is specified, by looking for a Git remote in the current folder that
+            references Duostack.
+            
+          EOF
+        end
+        
+        def rake
+          <<-EOF
+            
+            Usage: #{$client} rake [<command>] [--app <appname>]
+            
+            Runs rake (with an optional <command> argument) on your app. After the task has
+            run, the output will be displayed. Tasks running longer than 60 seconds will not
+            have their full output displayed.
+            
+            Applicable only to Ruby applications.
+            
+            The app to operate on is determined first from the command line '--app' flag, or
+            if none is specified, by looking for a Git remote in the current folder that
+            references Duostack.
+            
+          EOF
+        end
+        
+        
+      end
+    end
+    
   end
 end
 
 
-Duostack::Client.new(ARGV.dup, File.basename(__FILE__)).run
+Duostack::Client.new(ARGV.dup, $client).run
