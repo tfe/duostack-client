@@ -6,6 +6,7 @@ module Duostack
   class Client
     
     VERSION = '0.1.0'
+    DEPENDENCIES_LAST_MODIFIED = 1297154481
     USER_AGENT = "duostack-#{VERSION}"
     
     FLAGS = [                        # app is one too but gets special handling
@@ -120,6 +121,10 @@ module Duostack
     #########################################################################
     
     def check_dependencies
+      
+      filename = File.expand_path('~/.duostack')
+      return if File.exist?(filename) && File.mtime(filename).to_i > DEPENDENCIES_LAST_MODIFIED
+      
       # ruby
       if `which ruby`.empty? # how are we even here?
         exit_with "missing dependency, please install Ruby 1.8.6 or later"
@@ -148,6 +153,11 @@ module Duostack
       if `which expect`.empty?
         exit_with "missing dependency, please install Expect"
       end
+      
+      # touch .duostack so we know when deps were last checked
+      require 'fileutils'
+      FileUtils.touch(filename)
+      
     end
     
     # ensures the app can be identified from inspecting the git repo or command line args
