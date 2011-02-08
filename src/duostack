@@ -8,7 +8,11 @@ module Duostack
     VERSION = '0.1.0'
     USER_AGENT = "duostack-#{VERSION}"
     
-    FLAGS = ['confirm', 'long']      # app is one too but gets special handling
+    FLAGS = [                        # app is one too but gets special handling
+      'confirm',
+      'long',
+      'skip-dependency-checks'
+    ]
     
     COMMANDS = {
       :default => 'help',            # command used when no other command is given
@@ -47,7 +51,7 @@ module Duostack
       @confirmed = @app_name && @flags.include?('confirm')
       
       # make sure everything is in order
-      check_dependencies
+      check_dependencies unless @flags.include?('skip-dependency-checks')
       validate_args                                       # checks for extraneous args and valid command
       require_app if COMMANDS[:app].include?(@command)    # checks that user is set and app can be ID'd
       require_user if COMMANDS[:user].include?(@command)  # checks user credentials
