@@ -47,6 +47,7 @@ module Duostack
       @confirmed = @app_name && @flags.include?('confirm')
       
       # make sure everything is in order
+      check_dependencies
       validate_args                                       # checks for extraneous args and valid command
       require_app if COMMANDS[:app].include?(@command)    # checks that user is set and app can be ID'd
       require_user if COMMANDS[:user].include?(@command)  # checks user credentials
@@ -113,6 +114,37 @@ module Duostack
     
     # validation methods
     #########################################################################
+    
+    def check_dependencies
+      # ruby
+      if `which ruby`.empty? # how are we even here?
+        exit_with "missing dependency, please install Ruby 1.8.6 or later"
+      end
+      
+      # ruby >= 1.8.6
+      if `ruby -v`.split[1].to_f < 1.8
+        exit_with "missing dependency, please install Ruby 1.8.6 or later"
+      end
+      
+      # git (any)
+      if `which git`.empty?
+        exit_with "missing dependency, please install Git"
+      end
+      
+      # curl
+      if `which curl`.empty?
+        exit_with "missing dependency, please install curl (http://curl.haxx.se/download.html)"
+      end
+      
+      # curl SSL
+      # handled inside api_host method
+      
+      # expect
+      # TODO: just use ruby expect lib
+      if `which expect`.empty?
+        exit_with "missing dependency, please install Expect"
+      end
+    end
     
     # ensures the app can be identified from inspecting the git repo or command line args
     def require_app
