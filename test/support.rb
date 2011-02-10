@@ -1,11 +1,15 @@
 # spec helper methods
 
 def build_command(command)
-  "#{$client} #{command}"
+  "#{$client_executable} #{command}"
 end
 
 def run_command(command)
   `#{build_command(command)}`.chomp
+end
+
+def run_expect(command, app_name=nil)
+  `expect #{File.dirname(__FILE__)}/console_test.expect #{$client_executable} "#{command}" #{app_name}`.gsub("\r", '')
 end
 
 # http://stackoverflow.com/questions/1496019/suppresing-output-to-console-with-ruby

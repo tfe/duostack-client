@@ -1,9 +1,10 @@
 #!/usr/bin/env expect
 
-set appname [lindex $argv 0]
+set client  [lindex $argv 0]
 set command [lindex $argv 1]
+set appname [lindex $argv 2]
 
-spawn duostack console --app $appname
+spawn $client console --app $appname
 expect ">> "
 send $command
 send "\n"

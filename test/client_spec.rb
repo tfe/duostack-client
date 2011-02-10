@@ -5,7 +5,12 @@ describe "Duostack client" do
   before(:all) do
     # set which client to use (allows testing of gem installed client)
     # uses client in src/ by default
-    $client = ENV['DSCLIENT'] || "#{File.dirname(__FILE__)}/../src/duostack"
+    $client_executable = ENV['DSCLIENT'] || "#{File.dirname(__FILE__)}/../src/duostack"
+    $client = File.basename($client_executable)
+    
+    # swap out current credentials so we can test validation of test account credentials
+    # TODO: make this more robust and less interfering by using --creds flag
+    `mv ~/.duostack ~/.duostack.bak`
     
     # generate a test app name off of current timestamp
     @app_name = "test#{Time.now.to_i}"
@@ -35,10 +40,60 @@ describe "Duostack client" do
       `cd #{@app_path} && git init && git add . && git commit -m "Initial commit."`
     end
     
+    it "should reject invalid credentials" do
+      user = pass = ' '
+      
+      result = `expect #{File.dirname(__FILE__)}/credentials_test.expect #{$client_executable} "#{user}" "#{pass}" 2>/dev/null`.gsub("\r", '')
+      expected = <<-END.gsub(/^ {8}/, '').gsub("\r", '')
+        spawn #{$client_executable} sync
+        First-time Duostack client setup
+        Email Address: #{user}
+        Password: 
+        #{$client}: authentication error, please try again or contact support@duostack.com
+      END
+      result.should == expected
+    end
+    
+    it "should sync credentials" do
+      user, pass = ENV['DSUSER'], ENV['DSPASS']
+      raise "pass DSUSER and DSPASS for credentials sync test" if user.to_s.empty? || pass.to_s.empty?
+      
+      result = `expect #{File.dirname(__FILE__)}/credentials_test.expect #{$client_executable} "#{user}" "#{pass}" 2>/dev/null`.gsub("\r", '')
+      expected = <<-END.gsub(/^ {8}/, '').gsub("\r", '')
+        spawn #{$client_executable} sync
+        First-time Duostack client setup
+        Email Address: #{user}
+        Password: 
+        Completed initial setup... waiting for sync...
+        
+      END
+      result.should == expected
+    end
+    
+    it "should show a blank app list" do
+      pending "test user account"
+    end
+    
+    it "should disallow special characters in app names" do
+      run_command("create illegal-name 2>&1").should match("invalid app name")
+    end
     
     it "should allow app creation" do
       result = `cd #{@app_path} && #{build_command("create")} #{@app_name}`.chomp
-      result.should match("Duostack initialized. To push: git push duostack master")
+      result.should match("App created")
+      result.should match("Git remote added")
+    end
+    
+    it "should disallow creation of duplicate apps" do
+      # temporarily remove git remote to fool duostack create
+      `cd #{@app_path} && git remote rm duostack 2>&1`
+      
+      # attempt re-create
+      result = `cd #{@app_path} && #{build_command("create")} #{@app_name} 2>&1`.chomp
+      result.should match("app name already in use")
+      
+      # replace git remote
+      `cd #{@app_path} && git remote add duostack git@duostack.net:#{@app_name}.git 2>&1`
     end
     
     it "should list apps with created app" do
@@ -72,6 +127,10 @@ describe "Duostack client" do
       
       
       describe "config commands" do
+        
+        it "should list configs" do
+          run_command("config --app #{@app_name}").should match("stack: autodetect")
+        end
       
         it "should list config options for stack" do
           result = run_command("config stack --app #{@app_name}")
@@ -86,9 +145,9 @@ describe "Duostack client" do
       
         it "should reflect stack change upon re-push" do
           `cd #{@app_path} && touch poke && git add poke && git commit -m "poke" && git push duostack master 2>&1`
-          result = `expect #{File.dirname(__FILE__)}/console_test.expect #{@app_name} "IO.popen('ruby -v') { |f| puts f.gets }"`.gsub("\r", '')
+          result = run_expect("IO.popen('ruby -v') { |f| puts f.gets }", @app_name)
           expected = <<-END.gsub(/^ {12}/, '').gsub("\r", '')
-            spawn duostack console --app #{@app_name}
+            spawn #{$client_executable} console --app #{@app_name}
             Connecting to Ruby console for #{@app_name}...
             >> IO.popen('ruby -v') { |f| puts f.gets }
             ruby 1.9.2p136 (2010-12-25 revision 30365) [x86_64-linux]
@@ -98,6 +157,14 @@ describe "Duostack client" do
           END
         
           result.should == expected
+        end
+        
+        it "should reject invalid config names" do
+          run_command("config oiwejfjasd --app #{@app_name} 2>&1").should match("invalid config option name")
+        end
+        
+        it "should reject invalid config values" do
+          run_command("config stack woqreinkdv --app #{@app_name} 2>&1").should match("invalid config option value")
         end
       
       end      
@@ -136,10 +203,9 @@ describe "Duostack client" do
       
         it "should see env vars in console" do
           run_command("restart --app #{@app_name}") # need to restart first
-        
-          result = `expect #{File.dirname(__FILE__)}/console_test.expect #{@app_name} "ENV['env1']"`.gsub("\r", '')
+          result = run_expect("ENV['env1']", @app_name)
           expected = <<-END.gsub(/^ {12}/, '').gsub("\r", '')
-            spawn duostack console --app #{@app_name}
+            spawn #{$client_executable} console --app #{@app_name}
             Connecting to Ruby console for #{@app_name}...
             >> ENV['env1']
             => "var1"
@@ -177,9 +243,9 @@ describe "Duostack client" do
       
       describe "for Ruby apps" do
         it "should start a console session" do
-          result = `expect #{File.dirname(__FILE__)}/console_test.expect #{@app_name} "puts 'console test'"`.gsub("\r", '')
+          result = run_expect("puts 'console test'", @app_name)
           expected = <<-END.gsub(/^ {12}/, '').gsub("\r", '')
-            spawn duostack console --app #{@app_name}
+            spawn #{$client_executable} console --app #{@app_name}
             Connecting to Ruby console for #{@app_name}...
             >> puts 'console test'
             console test
@@ -188,7 +254,7 @@ describe "Duostack client" do
             Connection to duostack.net closed.
           END
           
-          result.should match(expected)
+          result.should == expected
         end
         
         it "should run rake tasks" do
@@ -215,6 +281,11 @@ describe "Duostack client" do
       result = `cd #{@app_path} && git remote`.chomp
       result.should_not include('duostack')
     end
+  end
+  
+  after(:all) do
+    # swap credentials back
+    `mv ~/.duostack.bak ~/.duostack`
   end
   
 end
