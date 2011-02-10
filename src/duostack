@@ -148,9 +148,9 @@ module Duostack
       # curl SSL
       # handled inside api_host method
       
-      # expect
+      # expect (only if running console)
       # TODO: just use ruby expect lib
-      if `which expect`.empty?
+      if @command == 'console' && `which expect`.empty?
         exit_with "missing dependency, please install Expect"
       end
       
