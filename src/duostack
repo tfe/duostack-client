@@ -8,6 +8,7 @@ module Duostack
     
     VERSION = '0.1.0'
     DEPENDENCIES_LAST_MODIFIED = 1297154481
+    DEFAULT_CREDENTIALS_LOCATION = '~/.duostack'
     USER_AGENT = "duostack-#{VERSION}"
     
     FLAGS = [                        # app is one too but gets special handling
@@ -49,9 +50,10 @@ module Duostack
     end
     
     def run
-      @app_name = parse_app # attempt to get app from args. will also try git repo inference later.
-      @flags    = parse_flags
-      @command  = @args.shift || COMMANDS[:default]
+      @creds_file = get_flag_arg('creds') || DEFAULT_CREDENTIALS_LOCATION
+      @app_name   = get_flag_arg('app') # attempt to get app from args. will also try git repo inference later.
+      @flags      = parse_flags
+      @command    = @args.shift || COMMANDS[:default]
       
       # we consider this run to be confirmed if the app name has been specified in the args and the --confirm flag is passed
       @confirmed = @app_name && @flags.include?('confirm')
@@ -69,16 +71,6 @@ module Duostack
     
     # argument processing methods
     #########################################################################
-    
-    # app is special because it's a flag with the next arg containing the app name
-    # generally we want to pull this first
-    def parse_app
-      if app_index = @args.index('--app')
-        # slice out app args so we don't re-use them later, returning second element.
-        # will be nil if no app name is passed after --app; that's okay.
-        @args.slice!(app_index, 2)[1]
-      end
-    end
     
     # extracts and validates any argument starting with '--', indicating a flag
     def parse_flags
@@ -121,13 +113,23 @@ module Duostack
       return next_args
     end
     
+    # used to read flags followed by an argument (e.g. --app)
+    # returns the arg following the flag of "name" or nil
+    def get_flag_arg(flag)
+      if flag_index = @args.index("--#{flag}")
+        # slice out flag args so we don't re-use them later, returning second element
+        # will be nil if no arg is passed after --flag; that's okay
+        @args.slice!(flag_index, 2)[1]
+      end
+    end
+    
     
     # validation methods
     #########################################################################
     
     def check_dependencies
       
-      filename = File.expand_path('~/.duostack')
+      filename = File.expand_path(@creds_file)
       return if File.exist?(filename) && File.mtime(filename).to_i > DEPENDENCIES_LAST_MODIFIED
       
       # ruby
@@ -159,9 +161,9 @@ module Duostack
         exit_with "missing dependency, please install Expect"
       end
       
-      # touch .duostack so we know when deps were last checked
+      # touch .duostack so we know when deps were last checked (but don't create it if it doesn't exist)
       require 'fileutils'
-      FileUtils.touch(filename)
+      FileUtils.touch(filename) if File.exist?(filename)
       
     end
     
@@ -177,25 +179,28 @@ module Duostack
     
     # ensures user credentials are cached
     def require_user
-      require_ssh_key # all user commands require an SSH key
+      @credentials ||= `cat #{@creds_file} 2>/dev/null`.chomp
       
-      @credentials ||= `cat ~/.duostack 2>/dev/null`.chomp
-      if @credentials.empty? || @credentials[/redirected/]
+      if @credentials.empty?
+        ssh_key = require_ssh_key # all user commands require an SSH key
+        
         puts "First-time Duostack client setup"
         print "Email Address: "
-        input_username = $stdin.gets.chomp
-        ssh_key = `cat #{@ssh_key}`.chomp
-        puts `bash -c 'read -sp "Password: " passwd; echo $passwd > ~/.duostack2'`
-        input_password = CGI::escape(`cat ~/.duostack2`.chomp)
-        `rm -f ~/.duostack2`
-        `curl -m 5 '#{api_host}/api/get_token?api_username=#{CGI::escape(input_username)}&api_password=#{input_password}&ssh_key=#{CGI::escape(ssh_key)}' -o ~/.duostack -s 2>&1 >/dev/null`
-        @credentials = `cat ~/.duostack 2>/dev/null`.chomp
-        if @credentials.empty? || @credentials[/redirected/] || @credentials.length != 32
-          `rm -f ~/.duostack`
-          exit_with "authentication error, please try again or contact support@duostack.com"
+        username = $stdin.gets.chomp
+        password = `bash -c 'read -sp "Password: " passwd; echo $passwd'`.chomp
+        puts '' # clears the line after
+        
+        username = CGI::escape(username)
+        password = CGI::escape(password)
+        ssh_key  = CGI::escape(ssh_key)
+        
+        api_token = api_get('get_token', "api_username=#{username}&api_password=#{password}&ssh_key=#{ssh_key}", 5)
+        `echo 'api_username=#{username}&api_token=#{api_token}' > #{@creds_file}`
+        `chmod 600 #{@creds_file}`
+        @credentials = `cat #{@creds_file} 2>/dev/null`.chomp
+        if @credentials.empty? || @credentials.length < 32 # at least the length of the token
+          exit_with "error saving credentials file, please contact support@duostack.com"
         end
-        `echo 'api_username=#{CGI::escape(input_username)}&api_token=#{@credentials}' > ~/.duostack`
-        @credentials = `cat ~/.duostack 2>/dev/null`.chomp
         puts "Completed initial setup... waiting for sync..."
         sleep 4 # TODO: Do a sync check here in the future, 4 secs is safe for now
         puts ""
@@ -205,7 +210,7 @@ module Duostack
     end
     
     def require_ssh_key
-      @ssh_key ||= extract_ssh_key
+      @ssh_key ||= `cat #{ssh_key_location}`.chomp
       unless @ssh_key
         exit_with "an SSH key is required to run this command, please generate an SSH key and try again (http://docs.duostack.com/command-line-client#setup)"
       end
@@ -229,7 +234,7 @@ module Duostack
       return name.empty? ? nil : name # ensures nil gets returned instead of an empty string
     end
     
-    def extract_ssh_key
+    def ssh_key_location
       if `file ~/.ssh/id_rsa.pub`[/text|key/]
         '~/.ssh/id_rsa.pub'
       elsif `file ~/.ssh/id_dsa.pub`[/text|key/]
