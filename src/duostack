@@ -389,7 +389,7 @@ module Duostack
       
       # attempt to remove duostack git remote
       # only if "duostack" remote actually references this app's remote
-      if !remote.empty? and remote.scan("git@duostack.net:#{app}.git").length > 0
+      if !remote.empty? and remote.scan("git@duostack.net:#{@app_name}.git").length > 0
         `git remote rm duostack 2>/dev/null`
       end
     end
