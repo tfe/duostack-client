@@ -18,7 +18,11 @@ module Duostack
     COMMANDS = {
       :default => 'help',            # command used when no other command is given
       :general => %w(version help),  # general commands, can always be run
-      :user    => %w(create list),   # commands requiring a credentials (first-time setup)
+      :user    => [                  # commands requiring credentials (first-time setup)
+        'create',
+        'list',
+        'sync'
+      ],
       :app     => [                  # commands requiring an app to be specified (either by git inference or flag)
         'logs',
         'restart',
@@ -319,6 +323,9 @@ module Duostack
       end 
     end
     
+    def sync
+      # empty method, just makes sure credentials are set
+    end
     
     def list
       puts api_get('list_apps')
