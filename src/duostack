@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 require 'cgi'
+$dir = File.dirname(File.expand_path(__FILE__))
 $client = File.basename(__FILE__)
 
 module Duostack
@@ -389,7 +390,7 @@ module Duostack
     
     
     def console
-      exec(".duostack-console-expect #{@app_name}")
+      exec("#{$dir}/.duostack-console-expect #{@app_name}")
     end
     
     
