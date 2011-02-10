@@ -253,9 +253,10 @@ module Duostack
           warn_with "WARNING! curl SSL support is missing, using insecure plaintext mode"
           host = "http://duostack.duostack.net"
         end
-        if ENV['DSLOCAL']
-          puts "Internal development mode"
-          host = "http://localhost:3000"
+        if local = ENV['DSLOCAL']
+          debug "internal development mode"
+          local ||= "http://localhost:3000"
+          host = local
         end
         host
       end
@@ -272,7 +273,7 @@ module Duostack
     end
     
     def curl_get(url, timeout=nil)
-      command = "curl -sf -A '#{USER_AGENT}' -w '\n%{http_code}' '#{url}'" # use w flag to append http status code
+      command = "curl -s#{'v' if ENV['DSDEBUG']} -A '#{USER_AGENT}' -w '\n%{http_code}' '#{url}'" # use w flag to append http status code
       command += " -m #{timeout}" if timeout
       raw = `#{command}`
       
