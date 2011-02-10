@@ -412,16 +412,19 @@ module Duostack
     
     def config
       
-      name  = get_next_args(1, "option name is required, try '#{@client} config <name> [<setting>]'")
-      value = @args.shift
+      name, value = @args.shift(2)
       
-      name  = CGI::escape(name)
+      name  = CGI::escape(name) if name
       value = CGI::escape(value) if value
       
-      if value # value provided, set config
-        puts api_get('option_set', "name=#{name}&val=#{value}")
-      else # no value provided, get config
-        puts api_get('option_get', "name=#{name}")
+      if name # name provided, get/set config
+        if value # value provided, set config
+          puts api_get('option_set', "name=#{name}&val=#{value}")
+        else # no value provided, get config
+          puts api_get('option_get', "name=#{name}")
+        end
+      else # no name provided, get list
+        puts api_get('option_list')
       end
     end
     
@@ -512,22 +515,22 @@ module Duostack
             For additional information on any of them, run: #{$client} help <command>
             
             General Commands:
-              help [<command>]          Show this help, or detailed help on <command>
-              create <appname>          Initialize a Git repository as a Duostack App
-              list                      Show all associated Duostack Apps
-              version                   Show version of this Duostack client
+              help [<command>]            Show this help, or detailed help on <command>
+              create <appname>            Initialize a Git repository as a Duostack App
+              list                        Show all apps associated with your account
+              version                     Show version of this Duostack client
             
             App Commands:
-              logs                      Retrieve server logs
-              restart                   Restart instances
-              ps                        List instances with current status
-              destroy                   Destroy Duostack App and associated data
-              config <name> [<setting>] Show or set configuration options
-              env [<operation>]         Manage environment variables
+              logs                        Retrieve server logs
+              restart                     Restart instances
+              ps                          List instances with current status
+              destroy                     Destroy Duostack App and associated data
+              config [<name> [<setting>]] Show or set configuration options
+              env [<operation>]           Manage environment variables
             
             App Commands - Ruby:
-              console                   Connect to IRB/Rails console
-              rake [<command>]          Run a Rake command
+              console                     Connect to IRB/Rails console
+              rake [<command>]            Run a Rake command
             
           EOF
         end
