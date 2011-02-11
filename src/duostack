@@ -109,7 +109,7 @@ module Duostack
     end
     
     def get_next_args(qty=0, message="missing required argument(s), run '#{@client} help'")
-      next_args = @args.shift(qty)
+      next_args = @args.slice!(0, qty)
       
       # make sure we got as many args as the caller wanted
       exit_with message unless next_args.length == qty
@@ -419,7 +419,7 @@ module Duostack
     
     def config
       
-      name, value = @args.shift(2)
+      name, value = @args.slice!(0,2)
       
       name  = CGI::escape(name) if name
       value = CGI::escape(value) if value
