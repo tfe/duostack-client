@@ -1,4 +1,9 @@
 #!/usr/bin/env ruby
+
+# Duostack Command Line Client
+# (c) 2011 Duostack, Inc. All right reserved.
+#############################################################################
+
 require 'cgi'
 $dir = File.dirname(File.expand_path(__FILE__))
 $client = File.basename(__FILE__)
