@@ -493,12 +493,12 @@ module Duostack
       command ||= 'list' # list is the default
       
       # ensure command is valid
-      unless %w(add remove rm list ls).include?(command)
-        exit_with "invalid argument for 'access', try list, add, or remove"
+      unless %w(add list ls).include?(command)
+        exit_with "invalid argument for 'access', try list or add"
       end
       
       # ensure we have an argument for add/remove commands which require it
-      if %w(add remove rm).include?(command)
+      if %w(add).include?(command)
         # gather up and compose remaining args for add/remove operations
         argument = @args.join(' ')
         @args.clear # clean up, since we processed every remaining arg
@@ -508,8 +508,6 @@ module Duostack
           case command
           when 'add'
             exit_with "'access add' requires an argument, try 'access add <email>'"
-          when 'remove', 'rm'
-            exit_with "'access #{command}' requires an argument, try 'access #{command} <email>'"
           end
         end
         
@@ -523,8 +521,6 @@ module Duostack
         print api_get("list_collabs")
       when 'add'
         puts api_get("add_collab", "emails=#{argument}")
-      when 'remove', 'rm'
-        puts api_get("remove_collab", "emails=#{argument}")
       end
     end
     
@@ -740,14 +736,12 @@ module Duostack
             Usage:
               #{$client} access                          lists app collaborators
               #{$client} access add <email>              grants access for <email>
-              #{$client} access remove <email>           removes access for <email>
             
             Examples:
               #{$client} access                          lists app collaborators
               #{$client} access add name@example.com     grants access for name@example.com
-              #{$client} access remove name@example.com  removes access for name@example.com
             
-            Lists, adds, and removes app collaborator access for users (identified by
+            Lists and adds app collaborator access for users (identified by
             emails).
             
             List: Lists collaborator emails who currently have access to the app. If none
@@ -755,11 +749,6 @@ module Duostack
             
             Add: Add one or more collaborators (by email address) to the app. Add multiple
             by supplying additional <email> arguments separated by spaces.
-            
-            Remove: Removes one or more collaborators (by email address) from the app.
-            Remove multiple by supplying additional <email> arguments separated by spaces.
-            You are able to remove yourself from an app; however, the last remaining
-            collaborator cannot be removed.
             
           EOF
         end

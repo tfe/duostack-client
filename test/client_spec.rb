@@ -265,19 +265,6 @@ describe "Duostack client" do
           result.should match('test@example.net')
           result.should match('test@example.org')
         end
-      
-        it "should allow removing collaborators" do
-          run_command("access remove test@example.com --app #{@app_name}").should == "Access removed for email(s)"
-          run_command("access --app #{@app_name}").should_not match('test@example.com')
-        end
-        
-        it "should allow removing multiple collaborators at once" do
-          run_command("access remove test@example.org test@example.net --app #{@app_name}").should == "Access removed for email(s)"
-        
-          list = run_command("access --app #{@app_name}")
-          list.should_not match('test@example.org')
-          list.should_not match('test@example.net')
-        end
       end
       
       
