@@ -641,10 +641,14 @@ module Duostack
             
             Usage: #{$client} restart
             
-            Restarts all the app's instances. This will cause the app to pick up any changes
-            to its configuration options or environment variables made with the 'config' or
-            'env' commands. Apps on Duostack are automatically restarted after each Git
-            push deploy.
+            Restarts all the app's instances. Useful for recovering from errors or forcing a
+            purge of the HTTP cache for your app 
+            (see: http://docs.duostack.com/http-caching).
+            
+            This will also cause the app to pick up any changes to its configuration options
+            or environment variables made with the 'config' or 'env' commands.
+            
+            Apps on Duostack are automatically restarted after each Git push deploy.
             
           EOF
         end
@@ -779,6 +783,9 @@ module Duostack
             Runs rake (with an optional <command> argument) on your app. After the task has
             run, the output will be displayed. Tasks running longer than 60 seconds will not
             have their full output displayed.
+            
+            Passing of environment variables if your rake task requires them is supported
+            (e.g. rake db:seed MODEL=Posts).
             
             Applicable only to Ruby applications.
             
