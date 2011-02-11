@@ -33,14 +33,16 @@ module Duostack
         'console',
         'rake',
         'config',
-        'env'
+        'env',
+        'access'
       ],
       :compound => [                 # mult-part commands that expect subsequent arguments, must validate extra args on their own
         'help',
         'create',
         'rake',
         'config',
-        'env'
+        'env',
+        'access'
       ]
     }
     
@@ -429,7 +431,6 @@ module Duostack
     end
     
     
-    # TODO: generalize this, because there will be other CRUD commands in the future
     def env
       
       # get command
@@ -481,8 +482,49 @@ module Duostack
       when 'clear'
         require_confirmation
         puts api_get("clear_envs")
-      else
-        exit false # this shouldn't happen
+      end
+    end
+    
+    
+    def access
+      
+      # get command
+      command = @args.shift
+      command ||= 'list' # list is the default
+      
+      # ensure command is valid
+      unless %w(add remove rm list ls).include?(command)
+        exit_with "invalid argument for 'access', try list, add, or remove"
+      end
+      
+      # ensure we have an argument for add/remove commands which require it
+      if %w(add remove rm).include?(command)
+        # gather up and compose remaining args for add/remove operations
+        argument = @args.join(' ')
+        @args.clear # clean up, since we processed every remaining arg
+        
+        # warn and exit unless we have an argument to pass
+        if argument.empty?
+          case command
+          when 'add'
+            exit_with "'access add' requires an argument, try 'access add <email>'"
+          when 'remove', 'rm'
+            exit_with "'access #{command}' requires an argument, try 'access #{command} <email>'"
+          end
+        end
+        
+        # clean up argument
+        argument = CGI::escape(argument)
+      end
+      
+      # finally, process command
+      case command
+      when 'list', 'ls'
+        print api_get("list_collabs")
+      when 'add'
+        puts api_get("add_collab", "emails=#{argument}")
+      when 'remove', 'rm'
+        puts api_get("remove_collab", "emails=#{argument}")
       end
     end
     
@@ -491,7 +533,7 @@ module Duostack
     module Help
       
       # available help sections. first will be used as the default.
-      SECTIONS = %w(help create list version logs restart ps destroy config env console rake)
+      SECTIONS = %w(help create list version logs restart ps destroy config env access console rake)
       
       class << self
         
@@ -531,6 +573,7 @@ module Duostack
               destroy                     Destroy Duostack App and associated data
               config [<name> [<setting>]] Show or set configuration options
               env [<operation>]           Manage environment variables
+              access [<operation>]        Manage app collaborator access
             
             App Commands - Ruby:
               console                     Connect to IRB/Rails console
@@ -687,6 +730,36 @@ module Duostack
             by supplying additional variable <name> arguments separated by spaces.
             
             Clear: Clears all environment variables from the app. Requires confirmation.
+            
+          EOF
+        end
+        
+        def access
+          <<-EOF
+            
+            Usage:
+              #{$client} access                          lists app collaborators
+              #{$client} access add <email>              grants access for <email>
+              #{$client} access remove <email>           removes access for <email>
+            
+            Examples:
+              #{$client} access                          lists app collaborators
+              #{$client} access add name@example.com     grants access for name@example.com
+              #{$client} access remove name@example.com  removes access for name@example.com
+            
+            Lists, adds, and removes app collaborator access for users (identified by
+            emails).
+            
+            List: Lists collaborator emails who currently have access to the app. If none
+            are set, output will be blank.
+            
+            Add: Add one or more collaborators (by email address) to the app. Add multiple
+            by supplying additional <email> arguments separated by spaces.
+            
+            Remove: Removes one or more collaborators (by email address) from the app.
+            Remove multiple by supplying additional <email> arguments separated by spaces.
+            You are able to remove yourself from an app; however, the last remaining
+            collaborator cannot be removed.
             
           EOF
         end

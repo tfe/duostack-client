@@ -193,6 +193,7 @@ describe "Duostack client" do
         it "should list env vars" do
           result = run_command("env --long --app #{@app_name}")
           result.should match(run_command("env list --app #{@app_name}"))
+          result.should match(run_command("env ls --app #{@app_name}"))
           result.should match('env1 => var1')
           result.should match('env2 => var2')
           result.should match('env3 => var3')
@@ -237,6 +238,45 @@ describe "Duostack client" do
           run_command("env clear --app #{@app_name} --confirm").should match("Environment variables cleared")
           list = run_command("env --app #{@app_name}")
           list.should be_empty
+        end
+      end
+      
+      
+      describe "collaborator access" do
+      
+        it "should allow adding collaborators" do
+          result = run_command("access add test@example.com --app #{@app_name}")
+          result.should match('Granting access for:')
+          result.should match('test@example.com')
+        end
+      
+        it "should allow adding multiple collaborators at once" do
+          result = run_command("access add test@example.org test@example.net --app #{@app_name}")
+          result.should match('Granting access for:')
+          result.should match('test@example.net')
+          result.should match('test@example.org')
+        end
+      
+        it "should list collaborators" do
+          result = run_command("access --app #{@app_name}")
+          result.should match(run_command("access list --app #{@app_name}"))
+          result.should match(run_command("access ls --app #{@app_name}"))
+          result.should match('test@example.com')
+          result.should match('test@example.net')
+          result.should match('test@example.org')
+        end
+      
+        it "should allow removing collaborators" do
+          run_command("access remove test@example.com --app #{@app_name}").should == "Access removed for email(s)"
+          run_command("access --app #{@app_name}").should_not match('test@example.com')
+        end
+        
+        it "should allow removing multiple collaborators at once" do
+          run_command("access remove test@example.org test@example.net --app #{@app_name}").should == "Access removed for email(s)"
+        
+          list = run_command("access --app #{@app_name}")
+          list.should_not match('test@example.org')
+          list.should_not match('test@example.net')
         end
       end
       
