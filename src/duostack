@@ -513,7 +513,7 @@ module Duostack
             
             App commands must be either run from an app folder (a Git repository with a
             Duostack remote) or have the app specified with the "--app <appname>" flag. If
-            both are done, the "--app" flag takes precedence.
+            both are present, the "--app" flag takes precedence.
             
             The most common commands are listed below.
             For additional information on any of them, run: #{$client} help <command>
