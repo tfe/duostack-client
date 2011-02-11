@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # Duostack Command Line Client
-# (c) 2011 Duostack, Inc. All right reserved.
+# (c) 2011 Duostack, Inc. All rights reserved.
 #############################################################################
 
 require 'cgi'
@@ -641,8 +641,8 @@ module Duostack
             
             Usage: #{$client} restart
             
-            Restarts all the app's instances. Useful for recovering from errors or forcing a
-            purge of the HTTP cache for your app 
+            Restarts all of the app's instances. Useful for recovering from errors or
+            forcing a purge of the HTTP cache for your app
             (see: http://docs.duostack.com/http-caching).
             
             This will also cause the app to pick up any changes to its configuration options
@@ -658,8 +658,8 @@ module Duostack
             
             Usage: #{$client} ps
             
-            Retreives a listing of all the app's instances with status information (uptime)
-            for each.
+            Retreives a listing of all of the app's instances with status information
+            (uptime) for each.
             
           EOF
         end
