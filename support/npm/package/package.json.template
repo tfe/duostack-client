@@ -4,6 +4,9 @@
   "version": "",
   "repository": {},
   "author": "Todd Eichel <todd@toddeichel.com> (http://toddeichel.com/)",
+  "scripts": {
+    "install" : "scripts/ruby-check.sh"
+  },
   "bin": {
     "duostack": "./bin/duostack",
     ".duostack-console-expect": "./bin/.duostack-console-expect"
