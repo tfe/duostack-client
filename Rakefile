@@ -8,27 +8,9 @@ end
 
 task :default => :test
 namespace :test do
-  task :rvm do
-    exec('rvm 1.8.6,1.9.2 rake test')
-  end
-  
-  namespace :packages do
-    task :gem => :version do
-      puts "Removing any existing duostack gem installations..."
-      puts `rvm 1.8.6,1.9.2 gem uninstall duostack -ax`
-      puts "Installing packaged gem..."
-      puts `rvm 1.8.6,1.9.2 gem install packages/duostack-client.#{$version}.gem`
-      puts "Running tests..."
-      exec("DSCLIENT=duostack rake test:rvm")
-    end
-    task :npm => :version do
-      puts "Removing any duostack gem installations..."
-      puts `sudo gem uninstall duostack -ax`
-      puts "Installing npm package..."
-      puts `npm install ./packages/duostack-client.#{$version}.npm.tgz`
-      puts "Running tests... (duostack is now #{`which duostack`.chomp})"
-      exec("DSCLIENT=duostack rake test")
-    end
+  desc "Runs tests against all supported ruby versions using rvm"
+  task :rubies do
+    exec("rvm 1.8.6,1.8.7,1.9.2 rake test")
   end
 end
 
@@ -39,15 +21,16 @@ end
 task :package => 'package:all'
 namespace :package do
   
-  desc "Create gem, npm, and tgz packages of the client."
+  desc "Build gem, npm, and tgz packages"
   task :all => [:tgz, :gem, :npm]
   
+  desc "Build tgz package"
   task :tgz => :version do
     puts "Packaging tgz of version #{$version}"
     `sh -c 'COPYFILE_DISABLE=true tar -czf packages/duostack-client.#{$version}.tgz -C src .'`
   end
   
-  
+  desc "Build gem package"
   task :gem => :version  do
     puts "Packaging gem of version #{$version}"
     `cd support/gem && rake gemspec && rake build` # builds gem into pkg/
@@ -55,7 +38,7 @@ namespace :package do
     `rm -rf support/gem/pkg/ support/gem/duostack.gemspec` # clean up
   end
   
-  
+  desc "Build npm package"
   task :npm => :version  do
     puts "Packaging npm package of version #{$version}"
     
