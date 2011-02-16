@@ -194,7 +194,6 @@ describe "Duostack client" do
         it "should list env vars" do
           result = run_command("env --long --app #{@app_name}")
           result.should == run_command("env list --app #{@app_name}")
-          result.should == run_command("env ls   --app #{@app_name}")
           result.should match('env1 => var1')
           result.should match('env2 => var2')
           result.should match('env3 => var3')
@@ -261,7 +260,6 @@ describe "Duostack client" do
         it "should list collaborators" do
           result = run_command("access --app #{@app_name}")
           result.should == run_command("access list --app #{@app_name}")
-          result.should == run_command("access ls   --app #{@app_name}")
           result.should match('test@example.com')
           result.should match('test@example.net')
           result.should match('test@example.org')
@@ -291,7 +289,6 @@ describe "Duostack client" do
         it "should list custom domains" do
           result = run_command("domains --app #{@app_name}")
           result.should == run_command("domains list --app #{@app_name}")
-          result.should == run_command("domains ls   --app #{@app_name}")
           result.should match(ENV['DSDOMAIN'])
         end
       
