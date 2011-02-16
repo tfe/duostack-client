@@ -181,12 +181,6 @@ module Duostack
       # curl SSL
       # handled inside api_host method
       
-      # expect (only if running console)
-      # TODO: just use ruby expect lib
-      if @command == 'console' && `which expect`.empty?
-        exit_with "missing dependency, please install Expect"
-      end
-      
       # touch .duostack so we know when deps were last checked (but don't create it if it doesn't exist)
       require 'fileutils'
       FileUtils.touch(filename) if File.exist?(filename)
@@ -434,6 +428,13 @@ module Duostack
     
     
     def console
+      # TODO: just use ruby expect lib
+      
+      # first check for expect dependency
+      if `which expect`.empty?
+        exit_with "missing dependency, please install Expect (http://expect.sourceforge.net/)"
+      end
+      
       exec("#{$dir}/.duostack-console-expect #{@app_name}")
     end
     
