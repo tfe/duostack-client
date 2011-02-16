@@ -37,6 +37,12 @@ Real actions are taken on the platform during test execution. While no user data
 
 If those are not present, the cached credentials in `~/.duostack` will be used (if present), and no tests of credentials syncing can be done.
 
+To run the domain adding/removing test cases, a valid domain name must be provided as an environment variable:
+
+    DSDOMAIN=test.example.com rake test
+
+During the test run, this domain will actually be added then removed from the generated test app, and in order to add it successfully, it must be set up properly (CNAME'd to `proxy.duostack.com`).
+
 
 Contact
 -------

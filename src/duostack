@@ -28,7 +28,7 @@ $client = File.basename(__FILE__)
 module Duostack
   class Client
     
-    VERSION = '0.1.0'
+    VERSION = '0.2.0'
     DEPENDENCIES_LAST_MODIFIED = 1297154481
     DEFAULT_CREDENTIALS_LOCATION = '~/.duostack'
     USER_AGENT = "duostack-#{VERSION}"
@@ -56,7 +56,8 @@ module Duostack
         'rake',
         'config',
         'env',
-        'access'
+        'access',
+        'domains'
       ],
       :compound => [                 # mult-part commands that expect subsequent arguments, must validate extra args on their own
         'help',
@@ -64,7 +65,8 @@ module Duostack
         'rake',
         'config',
         'env',
-        'access'
+        'access',
+        'domains'
       ]
     }
     
@@ -546,6 +548,48 @@ module Duostack
       end
     end
     
+    
+    def domains
+      
+      # get action
+      action = @args.shift
+      action ||= 'list' # list is the default
+      
+      # ensure action is valid
+      unless %w(add remove rm list ls).include?(action)
+        exit_with "invalid argument for '#{@command}', try list, add, or remove"
+      end
+      
+      # ensure we have an argument for add/remove actions which require it
+      if %w(add remove rm).include?(action)
+        # gather up and compose remaining args for add/remove operations
+        argument = @args.join(' ')
+        @args.clear # clean up, since we processed every remaining arg
+        
+        # warn and exit unless we have an argument to pass
+        if argument.empty?
+          case action
+          when 'add'
+            exit_with "'#{@command} #{action}' requires an argument, try '#{@command} #{action} <domain>'"
+          when 'remove', 'rm'
+            exit_with "'#{@command} #{action}' requires an argument, try '#{@command} #{action} <domain>'"
+          end
+        end
+        
+        # clean up argument
+        argument = CGI::escape(argument)
+      end
+      
+      # finally, process action
+      case action
+      when 'list', 'ls'
+        print api_get("list_domains")
+      when 'add'
+        puts api_get("add_domain", "domains=#{argument}")
+      when 'remove', 'rm'
+        puts api_get("remove_domain", "domains=#{argument}")
+      end
+    end
     
     
     module Help

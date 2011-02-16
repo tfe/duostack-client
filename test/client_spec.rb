@@ -268,6 +268,45 @@ describe "Duostack client" do
       end
       
       
+      describe "custom domains" do
+      
+        it "should allow adding custom domains" do
+          domain = ENV['DSDOMAIN']
+          raise "pass DSDOMAIN for custom domains tests" if domain.to_s.empty?
+          
+          result = run_command("domains add #{ENV['DSDOMAIN']} --app #{@app_name}")
+          result.should match('Adding domain names')
+          result.should match(ENV['DSDOMAIN'])
+          result.should_not match('Invalid domain name')
+          result.should_not match('Already in use')
+          result.should_not match('Failed record check')
+        end
+        
+        it "should not allow adding duplicate custom domains" do
+          result = run_command("domains add #{ENV['DSDOMAIN']} --app #{@app_name}")
+          result.should match('Already in use')
+        end
+      
+        it "should list custom domains" do
+          result = run_command("domains --app #{@app_name}")
+          result.should == run_command("domains list --app #{@app_name}")
+          result.should == run_command("domains ls   --app #{@app_name}")
+          result.should match(ENV['DSDOMAIN'])
+        end
+      
+        it "should see be able to access the app via custom domains" do
+          # perform an HTTP request to a known endpoint in the app with a known expected response
+          result = `curl -s http://#{ENV['DSDOMAIN']}/ 2>&1`
+          result.should match('Hello world!')
+        end
+      
+        it "should allow removing custom domains" do
+          run_command("domains remove #{ENV['DSDOMAIN']} --app #{@app_name}").should == "Domain name(s) removed"
+          run_command("domains --app #{@app_name}").should_not match(ENV['DSDOMAIN'])
+        end
+      end
+      
+      
       describe "for Ruby apps" do
         it "should start a console session" do
           result = run_expect("puts 'console test'", @app_name)
