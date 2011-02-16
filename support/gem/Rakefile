@@ -8,6 +8,7 @@ Jeweler::Tasks.new do |gem|
   gem.version = `bin/duostack version`.chomp
   gem.summary = %Q{Duostack command line client}
   gem.description = %Q{Duostack command line client: create and manage Duostack apps}
+  gem.homepage = "http://www.duostack.com/"
   gem.email = "todd@toddeichel.com"
   gem.authors = "Todd Eichel"
   gem.require_paths = ['.'] # default is ["lib"] but we don't have that

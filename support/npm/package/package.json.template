@@ -1,9 +1,14 @@
 {
   "name": "duostack",
-  "description": "Duostack command line client: create and manage Duostack apps",
   "version": "",
-  "repository": {},
+  "description": "Duostack command line client: create and manage Duostack apps",
+  "keywords": "duostack client cloud hosting platform",
+  "homepage": "http://www.duostack.com/",
   "author": "Todd Eichel <todd@toddeichel.com> (http://toddeichel.com/)",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/duostack/duostack-client.git"
+  },
   "scripts": {
     "install" : "scripts/ruby-check.sh"
   },
