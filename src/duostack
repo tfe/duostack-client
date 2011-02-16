@@ -594,8 +594,8 @@ module Duostack
     
     module Help
       
-      # available help sections. first will be used as the default.
-      SECTIONS = %w(help create list version logs restart ps destroy config env access console rake)
+      # available help sections. first will be used as the default, so unshift 'help' into first position.
+      SECTIONS = (COMMANDS[:general] + COMMANDS[:user] + COMMANDS[:app]).unshift('help')
       
       class << self
         
@@ -619,27 +619,28 @@ module Duostack
             Duostack remote) or have the app specified with the "--app <appname>" flag. If
             both are present, the "--app" flag takes precedence.
             
-            The most common commands are listed below.
-            For additional information on any of them, run: #{$client} help <command>
+            The most common commands are listed below. For additional information on any of
+            them, run: #{$client} help <command>
             
             General Commands:
-              help [<command>]            Show this help, or detailed help on <command>
-              create <appname>            Initialize a Git repository as a Duostack App
-              list                        Show all apps associated with your account
-              version                     Show version of this Duostack client
+              help [<command>]              Show this help, or detailed help on <command>
+              create <appname>              Initialize a Git repository as a Duostack App
+              list                          Show all apps associated with your account
+              version                       Show version of this Duostack client
             
             App Commands:
-              logs                        Retrieve server logs
-              restart                     Restart instances
-              ps                          List instances with current status
-              destroy                     Destroy Duostack App and associated data
-              config [<name> [<setting>]] Show or set configuration options
-              env [<operation>]           Manage environment variables
-              access [<operation>]        Manage app collaborator access
+              logs                          Retrieve server logs
+              restart                       Restart instances
+              ps                            List instances with current status
+              destroy                       Destroy Duostack App and associated data
+              config [<name> [<setting>]]   Show or set configuration options
+              env [<operation>]             Manage environment variables
+              access [<operation>]          Manage app collaborator access
+              domains [<operation>]         Manage custom domains
             
             App Commands - Ruby:
-              console                     Connect to IRB/Rails console
-              rake [<command>]            Run a Rake command
+              console                       Connect to IRB/Rails console
+              rake [<command>]              Run a Rake command
             
           EOF
         end
@@ -811,14 +812,41 @@ module Duostack
               #{$client} access                          lists app collaborators
               #{$client} access add name@example.com     grants access for name@example.com
             
-            Lists and adds app collaborator access for users (identified by
-            emails).
+            Lists and adds app collaborator access for users (identified by emails).
             
             List: Lists collaborator emails who currently have access to the app. If none
             are set, output will be blank.
             
             Add: Add one or more collaborators (by email address) to the app. Add multiple
             by supplying additional <email> arguments separated by spaces.
+            
+          EOF
+        end
+        
+        def domains
+          <<-EOF
+            
+            Usage:
+              #{$client} domains                          lists all custom domains
+              #{$client} domains add <domain>             adds <domain> as a custom domain
+              #{$client} domains remove <domain>          removes custom domain <domain>
+            
+            Examples:
+              #{$client} domains                          lists all env vars
+              #{$client} domains add app.example.com      adds app.example.com to app
+              #{$client} domains remove app.example.com   removes app.example.com from app
+            
+            Lists, adds, and removes custom domains
+            (http://docs.duostack.com/custom-domains).
+            
+            List: Lists custom domains currently set on the app. If none are set, output
+            will be blank.
+            
+            Add: Add one or more custom domains to the app. Add multiple by supplying
+            additional <domain> arguments separated by spaces.
+            
+            Remove: Removes one or more custom domains from the app. Remove multiple by
+            supplying additional <domain> arguments separated by spaces.
             
           EOF
         end
