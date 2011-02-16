@@ -326,6 +326,18 @@ module Duostack
       end
     end
     
+    def sentencize(array, conjunction='or')
+      # http://stackoverflow.com/questions/2038787/join-array-contents-into-an-english-list
+      case array.length
+      when 0, 1
+        array.first.to_s
+      when 2
+        "#{array.first} #{conjunction} #{array.last}"
+      else
+        "#{array[0..-2].join(', ')}, #{conjunction} #{array.last}"
+      end
+    end
+    
     def debug(message)
       puts message if ENV['DSDEBUG']
     end
