@@ -75,7 +75,8 @@ describe "Duostack client" do
     end
     
     it "should disallow special characters in app names" do
-      run_command("create illegal-name 2>&1").should match("invalid app name")
+      result = `cd #{@app_path} && #{build_command("create illegal-name 2>&1")} #{@app_name}`.chomp
+      result.should match("invalid app name")
     end
     
     it "should allow app creation" do
