@@ -47,7 +47,7 @@ describe "Duostack client" do
       expected = <<-END.gsub(/^ {8}/, '').gsub("\r", '')
         spawn #{$client_executable} sync
         First-time Duostack client setup
-        Email Address: #{user}
+        Email: #{user}
         Password: 
         #{$client}: authentication error, please try again or contact support@duostack.com
       END
@@ -62,7 +62,7 @@ describe "Duostack client" do
       expected = <<-END.gsub(/^ {8}/, '').gsub("\r", '')
         spawn #{$client_executable} sync
         First-time Duostack client setup
-        Email Address: #{user}
+        Email: #{user}
         Password: 
         Completed initial setup... waiting for sync...
         

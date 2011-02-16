@@ -211,7 +211,7 @@ module Duostack
         ssh_key = require_ssh_key # all user commands require an SSH key
         
         puts "First-time Duostack client setup"
-        print "Email Address: "
+        print "Email: "
         username = $stdin.gets.chomp
         password = `bash -c 'read -sp "Password: " passwd; echo $passwd'`.chomp
         puts '' # clears the line after
