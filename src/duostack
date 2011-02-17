@@ -30,10 +30,14 @@ module Duostack
     
     VERSION = '0.2.0'
     DEPENDENCIES_LAST_MODIFIED = 1297154481
-    DEFAULT_CREDENTIALS_LOCATION = '~/.duostack'
     USER_AGENT = "duostack-#{VERSION}"
     
-    FLAGS = [                        # app is one too but gets special handling
+    DEFAULTS = {
+      :credentials_location => '~/.duostack',
+      :remote_name => 'duostack'
+    }
+    
+    FLAGS = [                        # app and remote get special handling
       'confirm',
       'long',
       'skip-dependency-checks'
@@ -76,8 +80,10 @@ module Duostack
     end
     
     def run
-      @creds_file = get_flag_arg('creds') || DEFAULT_CREDENTIALS_LOCATION
-      @app_name   = get_flag_arg('app') # attempt to get app from args. will also try git repo inference later.
+      @creds_file = get_flag_arg('creds')  || DEFAULTS[:credentials_location]
+      @remote     = get_flag_arg('remote') || DEFAULTS[:remote_name]
+      # get app from args if we can, otherwise it will be extracted from git remotes during require_app
+      @app_name   = get_flag_arg('app')
       @flags      = parse_flags
       @command    = @args.shift || COMMANDS[:default]
       
@@ -190,7 +196,7 @@ module Duostack
     # ensures the app can be identified from inspecting the git repo or command line args
     def require_app
       require_user # all app commands require a user
-      @app_name ||= extract_app_name
+      @app_name ||= app_name_from_git_remotes
       unless @app_name
         exit_with "run this command from a Duostack app folder or pass an app name with the --app argument"
       end
@@ -249,9 +255,36 @@ module Duostack
     # utility methods
     #########################################################################
     
-    def extract_app_name
-      name = `git remote -v 2>&1 | grep -m1 git@duostack.net | grep ".git" | cut -f 2 -d: | cut -f 1 -d.`.chomp
-      return name.empty? ? nil : name # ensures nil gets returned instead of an empty string
+    # attempts to get the app name out of git remotes
+    # if --remote is specified, it will use that assuming it's valid
+    # if not, it will look for any remote name that references duostack.net
+    def app_name_from_git_remotes
+      remotes = `git remote -v 2>&1`.split("\n")
+      remotes.reject! { |line| line.split.last != '(push)' } # filter non-push remotes
+      
+      # find url of remote of specified name
+      valid_remotes = remotes.reject do |line|
+        line.split.first != @remote
+      end
+      remote_url = valid_remotes.first.split[1] unless valid_remotes.empty?
+      
+      # correct url will be in the form "git@duostack.net:appname.git"
+      # if remote of specified name is a duostack remote, set app_name
+      if !remote_url.to_s.empty? && remote_url[0..16] == "git@duostack.net:" && remote_url[-4..-1] == ".git"
+        app_name = remote_url[17..-5]
+      else # the specified remote isn't for duostack; look for another (take first match)
+        remotes.each do |line|
+          result = line.scan(/git@duostack\.net:(\w+)\.git/)
+          if result.length > 0 && result[0].length > 0
+            app_name = result[0][0]
+            remote_name = line.split.first
+            warn_with "remote '#{@remote}' does not refer to Duostack, using remote '#{remote_name}' instead"
+            break
+          end
+        end
+      end
+      
+      return app_name ||= nil
     end
     
     def ssh_key_location
@@ -382,16 +415,15 @@ module Duostack
         exit_with "current directory is not a Git repository, run 'git init' first"
       end
       
-      # ensure no existing duostack remote
-      if extract_app_name
-        exit_with "current directory already initialized for Duostack, remove any Git remotes referencing Duostack first"
+      # make sure we're not going to step on an existing git remote
+      if `git remote`.chomp.split("\n").include?(@remote)
+        exit_with "there is already a Git remote named '#{@remote}', please remove it or pass a \ndifferent name with the --remote argument"
       end
       
-      # create!
-      # TODO: ensure there is not already a remote named duostack
+      # create, add remote
       puts api_get('create_app', "app_name=#{name}")
-      `git remote add duostack git@duostack.net:#{name}.git 2>/dev/null`
-      puts "Git remote added, to push: 'git push duostack master'"
+      `git remote add #{@remote} git@duostack.net:#{name}.git 2>/dev/null`
+      puts "Git remote added, to push: 'git push #{@remote} master'"
     end
     
     
@@ -605,11 +637,16 @@ module Duostack
         def help
           <<-EOF
             
-            Usage: #{$client} <command> [<args>] [--app <appname>]
+            Usage: #{$client} <command> [<args>] [--app <appname>] [--remote <remotename>]
             
             App commands must be either run from an app folder (a Git repository with a
             Duostack remote) or have the app specified with the "--app <appname>" flag. If
             both are present, the "--app" flag takes precedence.
+            
+            You can also use the "--remote" flag to set the app based on a specific Git 
+            remote name. This is common when you run two Duostack Apps (e.g. staging and
+            production) from the same folder. This flag can also be used when running 
+            "create" to have the client set up a custom remote name (default is "duostack").
             
             The most common commands are listed below. For additional information on any of
             them, run: #{$client} help <command>
@@ -640,18 +677,25 @@ module Duostack
         def create
           <<-EOF
             
-            Usage:   #{$client} create <appname>
-            Example: #{$client} create myappname
+            Usage:
+              #{$client} create <appname>
+              #{$client} create <appname> --remote <remotename>
+              
+            Example:
+              #{$client} create myappname
+              #{$client} create myappname --remote staging
             
             Arguments:
               <appname>       A name for your app (restrictions apply, see below)
+              <remotename>    An optional name for the created Git remote
             
             Creates a new Duostack App from the current directory with the given name.
             
             The current directory must be initialized as a Git repository (run 'git init').
             Upon running 'create', the app will be created on Duostack and a Git remote with
             the name 'duostack' will be added to the local repository, which you can push to
-            to deploy your app: git push duostack master.
+            to deploy your app: git push duostack master. If a custom remote name is
+            specified with the '--remote' flag, that will be used instead.
             
             The app name must be 4-16 characters long, alphanumeric, and must not start with
             a number. The use of hyphens, underscores, or any other special characters is

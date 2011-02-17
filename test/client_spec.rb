@@ -75,12 +75,11 @@ describe "Duostack client" do
     end
     
     it "should disallow special characters in app names" do
-      result = `cd #{@app_path} && #{build_command("create illegal-name 2>&1")} #{@app_name}`.chomp
-      result.should match("invalid app name")
+      run_command("create illegal-name 2>&1", @app_path).should match("invalid app name")
     end
     
     it "should allow app creation" do
-      result = `cd #{@app_path} && #{build_command("create")} #{@app_name}`.chomp
+      result = run_command("create #{@app_name}", @app_path)
       result.should match("App created")
       result.should match("Git remote added")
     end
@@ -90,8 +89,7 @@ describe "Duostack client" do
       `cd #{@app_path} && git remote rm duostack 2>&1`
       
       # attempt re-create
-      result = `cd #{@app_path} && #{build_command("create")} #{@app_name} 2>&1`.chomp
-      result.should match("app name already in use")
+      run_command("create #{@app_name} 2>&1", @app_path).should match("app name already in use")
       
       # replace git remote
       `cd #{@app_path} && git remote add duostack git@duostack.net:#{@app_name}.git 2>&1`
@@ -101,6 +99,18 @@ describe "Duostack client" do
       result = run_command("list")
       result.split("\n").length.should > 0
       result.split("\n").include?(@app_name)
+    end
+    
+    it "should allow creation of another app in same folder with --remote" do
+      run_command("create #{@app_name.next} 2>&1", @app_path).should match("there is already a Git remote")
+      
+      result = run_command("create #{@app_name.next} --remote staging 2>&1", @app_path)
+      result.should match("App created")
+      result.should match("Git remote added")
+      
+      # add an env var so we can ID this app later
+      # TODO: use info command instead
+      run_command("env add name=#{@app_name.next} --app #{@app_name.next}")
     end
     
     
@@ -124,6 +134,34 @@ describe "Duostack client" do
       
       it "should retrieve process list" do
         run_command("ps --app #{@app_name}").should match('Instance ID')
+      end
+      
+      describe "commands using app/remote flag" do
+        
+        it "should allow specification of the app with the app flag" do
+          result = `cd /tmp && #{build_command("ps --app #{@app_name}")}`.chomp
+          result.should match("Instance")
+        end
+        
+        it "should reject non-existant remote name and select real duostack remote" do
+          result = run_command("ps --remote nonexistent 2>&1", @app_path)
+          result.should match("duostack: remote 'nonexistent' does not refer to Duostack, using remote 'duostack' instead")
+          result.should match("Instance")
+        end
+        
+        it "should reject non-duostack remote name and select real duostack remote" do
+          # first add non-duostack remote
+          `cd #{@app_path} && git remote add github git@github.com:duostack/duostack-client.git 2>&1`
+          
+          result = run_command("ps --remote github 2>&1", @app_path)
+          result.should match("duostack: remote 'github' does not refer to Duostack, using remote 'duostack' instead")
+          result.should match("Instance")
+        end
+        
+        it "should allow using --remote to set alternate app" do
+          # TODO: replace with info command so this test isn't dependent on env working
+          run_command("env --remote staging", @app_path).should match(@app_name.next)
+        end
       end
       
       
@@ -332,8 +370,7 @@ describe "Duostack client" do
   
   describe "cleanup commands" do
     it "should allow app deletion" do
-      # cd first so that remote will be removed
-      result = `cd #{@app_path} && #{build_command("destroy --app")} #{@app_name} --confirm`
+      result = run_command("destroy --app #{@app_name} --confirm", @app_path)
       result.should match("App destroyed")
     end
     

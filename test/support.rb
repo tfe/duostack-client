@@ -4,8 +4,8 @@ def build_command(command)
   "#{$client_executable} #{command}"
 end
 
-def run_command(command)
-  `#{build_command(command)}`.chomp
+def run_command(command, app_path='.')
+  `cd #{app_path} && #{build_command(command)}`.chomp
 end
 
 def run_expect(command, app_name=nil)
