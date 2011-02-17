@@ -247,7 +247,7 @@ module Duostack
       # NOTE: @confirmed is set above in 'run' so we can be assured the app_name came from the --app flag
       # if assessed confirmation here, the app could have been extracted from the git repo
       unless @confirmed
-        exit_with "command requires confirmation, run again with '--confirm --app <appname>'"
+        exit_with "command requires confirmation, run again with '--confirm --app #{@app_name}'"
       end
     end
     
