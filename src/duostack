@@ -255,6 +255,72 @@ module Duostack
     # utility methods
     #########################################################################
     
+    def process_crud_command(opts)
+      
+      # get action
+      action = @args.shift
+      action ||= 'list' # list is the default
+      
+      # extract important things from opts, otherwise merge defaults
+      resource  = opts[:resource]
+      resources = "#{resource}s" # may eventually need a better pluralizer
+      
+      # default settings for opts. priority is:
+      #  1. hash under each action (e.g. opts[:actions][:list][:param])
+      #  2. general opts (e.g. opts[:param])
+      #  3. generic defaults specified here (e.g. `resources`, the pluralized resource name)
+      defaults = {
+        :error_message     => opts[:error_message]    || "<#{resource}>",
+        :param             => opts[:param]            || resources,
+        :additional_params => opts[:additonal_params] || nil,
+        :args_processor    => opts[:args_processor]   || lambda { |args| args }
+      }
+      
+      # actions can be either a hash (containing action-specific options) or an array (accept the defaults)
+      if opts[:actions].respond_to?(:keys)
+        valid_actions = opts[:actions].keys.map { |x| x.to_s }
+        opts = defaults.merge(opts[:actions][action.to_sym])
+      else
+        valid_actions = opts[:actions]
+        opts = defaults.merge(opts)
+      end
+      
+      
+      # ensure action is valid
+      unless valid_actions.include?(action)
+        exit_with "invalid argument for '#{@command}', try #{sentencize(valid_actions)}"
+      end
+      
+      # ensure we have an argument for add/remove actions which require it
+      if %w(add remove).include?(action)
+        # gather up and compose remaining args for add/remove operations
+        argument = opts[:args_processor].call(@args).join(' ')
+        @args.clear # clean up, since we processed every remaining arg
+        
+        # warn and exit unless we have an argument to pass
+        if argument.empty?
+          exit_with "'#{@command} #{action}' requires an argument, try '#{@command} #{action} #{opts[:error_message]}'"
+        end
+        
+        # clean up argument
+        argument = CGI::escape(argument)
+      end
+      
+      # finally, process action
+      case action
+      when 'list'
+        print api_get("list_#{resources}", opts[:additional_params])
+      when 'add'
+        puts api_get("add_#{resource}",    ["#{opts[:param]}=#{argument}", opts[:additional_params]].compact.join('&'))
+      when 'remove'
+        puts api_get("remove_#{resource}", ["#{opts[:param]}=#{argument}", opts[:additional_params]].compact.join('&'))
+      when 'clear'
+        require_confirmation
+        puts api_get("clear_#{resources}", opts[:additional_params])
+      end
+    end
+    
+    
     # attempts to get the app name out of git remotes
     # if --remote is specified, it will use that assuming it's valid
     # if not, it will look for any remote name that references duostack.net
@@ -547,72 +613,6 @@ module Duostack
         :resource => 'domain',
         :actions => %w(list add remove)
       })
-    end
-    
-    
-    def process_crud_command(opts)
-      
-      # get action
-      action = @args.shift
-      action ||= 'list' # list is the default
-      
-      # extract important things from opts, otherwise merge defaults
-      resource  = opts[:resource]
-      resources = "#{resource}s" # may eventually need a better pluralizer
-      
-      # default settings for opts. priority is:
-      #  1. hash under each action (e.g. opts[:actions][:list][:param])
-      #  2. general opts (e.g. opts[:param])
-      #  3. generic defaults specified here (e.g. `resources`, the pluralized resource name)
-      defaults = {
-        :error_message     => opts[:error_message]    || "<#{resource}>",
-        :param             => opts[:param]            || resources,
-        :additional_params => opts[:additonal_params] || nil,
-        :args_processor    => opts[:args_processor]   || lambda { |args| args }
-      }
-      
-      # actions can be either a hash (containing action-specific options) or an array (accept the defaults)
-      if opts[:actions].respond_to?(:keys)
-        valid_actions = opts[:actions].keys.map { |x| x.to_s }
-        opts = defaults.merge(opts[:actions][action.to_sym])
-      else
-        valid_actions = opts[:actions]
-        opts = defaults.merge(opts)
-      end
-      
-      
-      # ensure action is valid
-      unless valid_actions.include?(action)
-        exit_with "invalid argument for '#{@command}', try #{sentencize(valid_actions)}"
-      end
-      
-      # ensure we have an argument for add/remove actions which require it
-      if %w(add remove).include?(action)
-        # gather up and compose remaining args for add/remove operations
-        argument = opts[:args_processor].call(@args).join(' ')
-        @args.clear # clean up, since we processed every remaining arg
-        
-        # warn and exit unless we have an argument to pass
-        if argument.empty?
-          exit_with "'#{@command} #{action}' requires an argument, try '#{@command} #{action} #{opts[:error_message]}'"
-        end
-        
-        # clean up argument
-        argument = CGI::escape(argument)
-      end
-      
-      # finally, process action
-      case action
-      when 'list'
-        print api_get("list_#{resources}", opts[:additional_params])
-      when 'add'
-        puts api_get("add_#{resource}",    ["#{opts[:param]}=#{argument}", opts[:additional_params]].compact.join('&'))
-      when 'remove'
-        puts api_get("remove_#{resource}", ["#{opts[:param]}=#{argument}", opts[:additional_params]].compact.join('&'))
-      when 'clear'
-        require_confirmation
-        puts api_get("clear_#{resources}", opts[:additional_params])
-      end
     end
     
     
