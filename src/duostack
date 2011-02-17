@@ -326,8 +326,8 @@ module Duostack
     # if --remote is specified, it will use that assuming it's valid
     # if not, it will look for any remote name that references duostack.net
     def app_name_from_git_remotes
-      remotes = `git remote -v 2>&1`.split("\n")
-      remotes.reject! { |line| line.split.last != '(push)' } # filter non-push remotes
+      remotes = `git remote -v 2>/dev/null`.split("\n")
+      remotes.reject! { |line| line.split.last == '(fetch)' } # filter out fetch remotes (careful, does not exist in older git versions)
       
       # find url of remote of specified name
       valid_remotes = remotes.reject do |line|
