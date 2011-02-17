@@ -258,8 +258,9 @@ module Duostack
     def process_crud_command(opts)
       
       # get action
-      action = @args.shift
-      action ||= 'list' # list is the default
+      action = @args.shift || 'list'      # list is the default
+      action = 'list'   if action == 'ls' # normalize shorthand for list
+      action = 'remove' if action == 'rm' # normalize shorthand for remove
       
       # extract important things from opts, otherwise merge defaults
       resource  = opts[:resource]
