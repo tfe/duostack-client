@@ -305,6 +305,11 @@ module Duostack
         
         # clean up argument
         argument = CGI::escape(argument)
+      else
+        # ensure we *don't* have any further arguments for list/clear which don't allow them
+        unless @args.empty?
+          exit_with("unrecognized argument: '#{@args.first}', run '#{@client} help #{@command}' for usage")
+        end
       end
       
       # finally, process action

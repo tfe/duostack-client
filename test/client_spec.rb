@@ -239,7 +239,12 @@ describe "Duostack client" do
           result.should match('env5 => "double quoted"')
           result.should match("env6 => 'single quoted'")
         end
-      
+        
+        it "should reject any additional arguments on list and clear" do
+          run_command("env list  foo --app #{@app_name} 2>&1").should match("unrecognized argument")
+          run_command("env clear foo --app #{@app_name} 2>&1").should match("unrecognized argument")
+        end
+        
         it "should see env vars in console" do
           run_command("restart --app #{@app_name}") # need to restart first
           result = run_expect("ENV['env1']", @app_name)
