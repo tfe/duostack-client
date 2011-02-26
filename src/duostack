@@ -381,6 +381,26 @@ module Duostack
       end
     end
     
+    def ca_cert_location
+      return @ca_cert_location if @ca_cert_location # easy memoization
+      
+      candidates = [
+        File.join($dir, '..', 'vendor', 'duostack-startcom.pem'), # gem packages
+        File.join($dir, '.duostack-startcom.pem')                 # npm, tgz packages
+      ]
+      
+      candidates.each do |filename|
+        if File.exist?(filename)
+          @ca_cert_location = filename
+          return filename
+        end
+      end
+      
+      # if we get to this point, the cert wasn't found
+      warn_with "custom certificate authority file not present, using system CA bundle"
+      return nil
+    end
+    
     def api_host
       @api_host ||= begin
         host = "https://duostack.duostack.net"
@@ -408,11 +428,14 @@ module Duostack
     end
     
     def curl_get(url, timeout=nil)
-      command = "curl -s#{'v' if ENV['DSDEBUG']} -A '#{USER_AGENT}' -w '\n%{http_code}' '#{url}'" # use w flag to append http status code
+      command = "curl -s -A '#{USER_AGENT}' -w '\n%{http_code}'" # use w flag to append http status code, set user-agent header
+      command += " --cacert #{ca_cert_location}" if ca_cert_location # use our own certificate if present
       command += " -m #{timeout}" if timeout
-      raw = `#{command}`
+      command += " -v" if ENV['DSDEBUG']
+      command += " '#{url}'" # finally, the actual URL to curl
       
       debug command
+      raw = `#{command}`
       debug raw
       
       # break apart the raw result and extract the HTTP status code, reassemble
