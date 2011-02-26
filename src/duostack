@@ -29,7 +29,7 @@ module Duostack
   class Client
     
     VERSION = '0.2.0'
-    DEPENDENCIES_LAST_MODIFIED = 1297154481
+    DEPENDENCIES_LAST_MODIFIED = 1298683372
     USER_AGENT = "duostack-#{VERSION}"
     
     DEFAULTS = {
@@ -183,6 +183,15 @@ module Duostack
       if `which curl`.empty?
         exit_with "missing dependency, please install curl (http://curl.haxx.se/download.html)"
       end
+      
+      # curl with --cacert flag (version >= 7.5)
+      version = `curl -V`.split.select { |s| s =~ /^(\d+\.)?(\d+\.)?(\d+\.)?(\*|\d+)$/ }.first # http://stackoverflow.com/questions/82064/a-regex-for-version-number-parsing
+      major, minor, patch = version.split('.').collect { |s| s.to_i } # split on dots and convert to ints
+      major, minor, patch = [major, minor, patch].collect { |v| v ||= 0 } # default each to 0
+      if major < 7 || (major == 7 && minor < 5)
+        exit_with "missing dependency, curl 7.5 or later is required (you have #{version})"
+      end
+      
       
       # curl SSL
       # handled inside api_host method
