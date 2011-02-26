@@ -245,7 +245,8 @@ module Duostack
     end
     
     def require_ssh_key
-      @ssh_key ||= `cat #{ssh_key_location}`.chomp
+      keyfile = ssh_key_location
+      @ssh_key ||= `cat #{keyfile}`.chomp if keyfile
       unless @ssh_key
         exit_with "an SSH key is required to run this command, please generate an SSH key and try again (http://docs.duostack.com/command-line-client#setup)"
       end
