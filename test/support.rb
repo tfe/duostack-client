@@ -5,7 +5,9 @@ def build_command(command)
 end
 
 def run_command(command, app_path='.')
-  `cd #{app_path} && #{build_command(command)}`.chomp
+  # run a command in the app_path (or current path if none provided)
+  # redirect stderr to stdout so we catch any odd behavior
+  `cd #{app_path} && #{build_command(command)} 2>&1`.chomp
 end
 
 def run_expect(command, app_name=nil)

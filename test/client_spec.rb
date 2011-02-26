@@ -75,7 +75,7 @@ describe "Duostack client" do
     end
     
     it "should disallow special characters in app names" do
-      run_command("create illegal-name 2>&1", @app_path).should match("invalid app name")
+      run_command("create illegal-name", @app_path).should match("invalid app name")
     end
     
     it "should allow app creation" do
@@ -89,7 +89,7 @@ describe "Duostack client" do
       `cd #{@app_path} && git remote rm duostack 2>&1`
       
       # attempt re-create
-      run_command("create #{@app_name} 2>&1", @app_path).should match("app name already in use")
+      run_command("create #{@app_name}", @app_path).should match("app name already in use")
       
       # replace git remote
       `cd #{@app_path} && git remote add duostack git@duostack.net:#{@app_name}.git 2>&1`
@@ -102,9 +102,9 @@ describe "Duostack client" do
     end
     
     it "should allow creation of another app in same folder with --remote" do
-      run_command("create #{@app_name.next} 2>&1", @app_path).should match("there is already a Git remote")
+      run_command("create #{@app_name.next}", @app_path).should match("there is already a Git remote")
       
-      result = run_command("create #{@app_name.next} --remote staging 2>&1", @app_path)
+      result = run_command("create #{@app_name.next} --remote staging", @app_path)
       result.should match("App created")
       result.should match("Git remote added")
       
@@ -144,7 +144,7 @@ describe "Duostack client" do
         end
         
         it "should reject non-existant remote name and select real duostack remote" do
-          result = run_command("ps --remote nonexistent 2>&1", @app_path)
+          result = run_command("ps --remote nonexistent", @app_path)
           result.should match("duostack: remote 'nonexistent' does not refer to Duostack, using remote 'duostack' instead")
           result.should match("Instance")
         end
@@ -153,7 +153,7 @@ describe "Duostack client" do
           # first add non-duostack remote
           `cd #{@app_path} && git remote add github git@github.com:duostack/duostack-client.git 2>&1`
           
-          result = run_command("ps --remote github 2>&1", @app_path)
+          result = run_command("ps --remote github", @app_path)
           result.should match("duostack: remote 'github' does not refer to Duostack, using remote 'duostack' instead")
           result.should match("Instance")
         end
@@ -199,11 +199,11 @@ describe "Duostack client" do
         end
         
         it "should reject invalid config names" do
-          run_command("config oiwejfjasd --app #{@app_name} 2>&1").should match("invalid config option name")
+          run_command("config oiwejfjasd --app #{@app_name}").should match("invalid config option name")
         end
         
         it "should reject invalid config values" do
-          run_command("config stack woqreinkdv --app #{@app_name} 2>&1").should match("invalid config option value")
+          run_command("config stack woqreinkdv --app #{@app_name}").should match("invalid config option value")
         end
       
       end      
@@ -241,8 +241,8 @@ describe "Duostack client" do
         end
         
         it "should reject any additional arguments on list and clear" do
-          run_command("env list  foo --app #{@app_name} 2>&1").should match("unrecognized argument")
-          run_command("env clear foo --app #{@app_name} 2>&1").should match("unrecognized argument")
+          run_command("env list  foo --app #{@app_name}").should match("unrecognized argument")
+          run_command("env clear foo --app #{@app_name}").should match("unrecognized argument")
         end
         
         it "should see env vars in console" do
@@ -274,7 +274,7 @@ describe "Duostack client" do
         end
       
         it "should require confirmation to clear env vars" do
-          run_command("env clear --app #{@app_name} 2>&1").should match("command requires confirmation")
+          run_command("env clear --app #{@app_name}").should match("command requires confirmation")
         end
       
         it "should clear env vars" do
