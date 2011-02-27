@@ -45,7 +45,7 @@ describe "Duostack client" do
       
       result = `expect #{File.dirname(__FILE__)}/credentials_test.expect #{$client_executable} "#{user}" "#{pass}" 2>/dev/null`.gsub("\r", '')
       expected = <<-END.gsub(/^ {8}/, '').gsub("\r", '')
-        spawn #{$client_executable} sync
+        spawn #{$client_executable} sync#{' ' if windows?}
         First-time Duostack client setup
         Email: #{user}
         Password: 
@@ -60,7 +60,7 @@ describe "Duostack client" do
       
       result = `expect #{File.dirname(__FILE__)}/credentials_test.expect #{$client_executable} "#{user}" "#{pass}" 2>/dev/null`.gsub("\r", '')
       expected = <<-END.gsub(/^ {8}/, '').gsub("\r", '')
-        spawn #{$client_executable} sync
+        spawn #{$client_executable} sync#{' ' if windows?}
         First-time Duostack client setup
         Email: #{user}
         Password: 
@@ -186,7 +186,7 @@ describe "Duostack client" do
           `cd #{@app_path} && touch poke && git add poke && git commit -m "poke" && git push duostack master 2>&1`
           result = run_expect("IO.popen('ruby -v') { |f| puts f.gets }", @app_name)
           expected = <<-END.gsub(/^ {12}/, '').gsub("\r", '')
-            spawn #{$client_executable} console --app #{@app_name}
+            spawn #{$client_executable} console --app #{@app_name}#{' ' if windows?}
             Connecting to Ruby console for #{@app_name}...
             >> IO.popen('ruby -v') { |f| puts f.gets }
             ruby 1.9.2p136 (2010-12-25 revision 30365) [x86_64-linux]
@@ -249,7 +249,7 @@ describe "Duostack client" do
           run_command("restart --app #{@app_name}") # need to restart first
           result = run_expect("ENV['env1']", @app_name)
           expected = <<-END.gsub(/^ {12}/, '').gsub("\r", '')
-            spawn #{$client_executable} console --app #{@app_name}
+            spawn #{$client_executable} console --app #{@app_name}#{' ' if windows?}
             Connecting to Ruby console for #{@app_name}...
             >> ENV['env1']
             => "var1"
@@ -352,7 +352,7 @@ describe "Duostack client" do
         it "should start a console session" do
           result = run_expect("puts 'console test'", @app_name)
           expected = <<-END.gsub(/^ {12}/, '').gsub("\r", '')
-            spawn #{$client_executable} console --app #{@app_name}
+            spawn #{$client_executable} console --app #{@app_name}#{' ' if windows?}
             Connecting to Ruby console for #{@app_name}...
             >> puts 'console test'
             console test

@@ -14,6 +14,10 @@ def run_expect(command, app_name=nil)
   `expect #{File.dirname(__FILE__)}/console_test.expect #{$client_executable} "#{command}" #{app_name}`.gsub("\r", '')
 end
 
+def windows?
+  `uname`.chomp =~ /CYGWIN/
+end
+
 # http://stackoverflow.com/questions/1496019/suppresing-output-to-console-with-ruby
 def silence_stream(stream, &block)
   require 'stringio'
