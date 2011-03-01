@@ -61,8 +61,17 @@ namespace :package do
       end
     end
     
+    # list of files to package
+    files = [
+      'package/package.json',
+      'package/scripts/ruby-check.sh',
+      'package/bin/.duostack-console-expect',
+      'package/bin/.duostack-startcom.pem',
+      'package/bin/duostack'
+    ].join(' ')
+    
     # write tarball
-    `sh -c 'COPYFILE_DISABLE=true tar -czf packages/duostack-client.#{$version}.npm.tgz -L -C support/npm .'`
+    `sh -c 'COPYFILE_DISABLE=true tar -czf packages/duostack-client.#{$version}.npm.tgz -L -C support/npm #{files}'`
     
     # clean up generated package.json
     `rm support/npm/package/package.json`
