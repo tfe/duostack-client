@@ -348,6 +348,80 @@ describe "Duostack client" do
       end
       
       
+      describe "setting instances" do
+        it "should show current instances" do
+          result = run_command("instances --app #{@app_name}")
+          result.should == run_command("instances show --app #{@app_name}")
+          result.should match("1")
+        end
+        
+        it "should reset billing confirmation flag" do
+          run_command('billing_reset')
+        end
+        
+        it "should prompt for billing confirmation" do
+          # disallow billing
+          result = expect_billing_confirmation('no', @app_name)
+          expected = <<-END.gsub(/^ {12}/, '').gsub("\r", '')
+            spawn #{$client_executable} instances 1 --app #{@app_name}#{' ' if windows?}
+            This is your first time enabling a paid feature that will be billed to your account. Type 'yes' to proceed: no
+          END
+          result.should == expected
+        end
+        
+        it "should re-prompt for billing confirmation after negative response" do
+          # non-response
+          result = expect_billing_confirmation('', @app_name)
+          expected = <<-END.gsub(/^ {12}/, '').gsub("\r", '')
+            spawn #{$client_executable} instances 1 --app #{@app_name}#{' ' if windows?}
+            This is your first time enabling a paid feature that will be billed to your account. Type 'yes' to proceed: 
+          END
+          result.should == expected
+        end
+        
+        it "should re-prompt for billing confirmation after blank response" do
+          # allow billing
+          result = expect_billing_confirmation('yes', @app_name)
+          expected = <<-END.gsub(/^ {12}/, '').gsub("\r", '')
+            spawn #{$client_executable} instances 1 --app #{@app_name}#{' ' if windows?}
+            This is your first time enabling a paid feature that will be billed to your account. Type 'yes' to proceed: yes
+            1
+          END
+          result.should == expected
+        end
+        
+        it "should allow incrementing instances" do
+          run_command("instances +1 --app #{@app_name}").should match("2")
+          run_command("instances +2 --app #{@app_name}").should match("4")
+        end
+        
+        it "should allow decrementing instances" do
+          run_command("instances -1 --app #{@app_name}").should match("3")
+          run_command("instances -2 --app #{@app_name}").should match("1")
+        end
+        
+        it "should allow setting instances absolutely" do
+          run_command("instances 4 --app #{@app_name}").should match("4")
+          run_command("instances 2 --app #{@app_name}").should match("2")
+        end
+        
+        it "should disallow setting instances below valid instance count" do
+          run_command("instances  0 --app #{@app_name}").should match("app must have at least one instance")
+          run_command("instances -2 --app #{@app_name}").should match("app must have at least one instance")
+          run_command("instances -4 --app #{@app_name}").should match("app must have at least one instance")
+        end
+        
+        it "should disallow setting instances above valid instance count" do
+          run_command("instances  16 --app #{@app_name}").should match("cannot exceed instance limit")
+          run_command("instances 116 --app #{@app_name}").should match("cannot exceed instance limit")
+          run_command("instances +14 --app #{@app_name}").should match("cannot exceed instance limit")
+        end
+        
+        # TODO: check 'ps' to make sure instances started/stopped
+        # TODO: check account verification process (currently tests need to run with verified account)
+      end
+      
+      
       describe "for Ruby apps" do
         it "should start a console session" do
           result = expect_console("puts 'console test'", @app_name)

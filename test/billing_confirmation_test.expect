@@ -1,0 +1,11 @@
+#!/usr/bin/env expect
+
+set client   [lindex $argv 0]
+set response [lindex $argv 1]
+set appname  [lindex $argv 2]
+
+spawn $client instances 1 --app $appname
+expect "This is your first time enabling a paid feature that will be billed to your account. Type 'yes' to proceed: "
+send $response
+send "\n"
+expect eof

@@ -14,6 +14,10 @@ def expect_console(command, app_name)
   `expect #{File.dirname(__FILE__)}/console_test.expect #{$client_executable} "#{command}" #{app_name}`.gsub("\r", '')
 end
 
+def expect_billing_confirmation(response, app_name)
+  `expect #{File.dirname(__FILE__)}/billing_confirmation_test.expect #{$client_executable} "#{response}" #{@app_name}`.gsub("\r", '')
+end
+
 def windows?
   `uname`.chomp =~ /CYGWIN/
 end

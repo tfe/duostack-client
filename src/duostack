@@ -62,7 +62,8 @@ module Duostack
         'config',
         'env',
         'access',
-        'domains'
+        'domains',
+        'instances'
       ],
       :compound => [                 # mult-part commands that expect subsequent arguments, must validate extra args on their own
         'help',
@@ -71,7 +72,8 @@ module Duostack
         'config',
         'env',
         'access',
-        'domains'
+        'domains',
+        'instances'
       ]
     }
     
@@ -420,12 +422,32 @@ module Duostack
     
     def api_get(endpoint, params=nil, timeout=20)
       
+      # store previous request
+      @previous_request = [endpoint, params, timeout]
+      
       url = "#{api_host}/api/#{endpoint}?#{@credentials}"
       
       url += "&app_name=#{@app_name}" if @app_name
       url += "&#{params}" if params
       
       curl_get(url, timeout)
+    end
+    
+    # just retries last api_get, optionally passing additional params
+    def api_retry(params=nil)
+      exit false if @previous_request.empty?
+      
+      # add in additional params
+      if params
+        if @previous_request[1]
+          @previous_request[1] = "#{@previous_request[1]}&#{params}"
+        else
+          @previous_request[1] = params
+        end
+      end
+      
+      # retry
+      api_get(*@previous_request)
     end
     
     def curl_get(url, timeout=nil)
@@ -449,6 +471,11 @@ module Duostack
         exit_with result
       end
       
+      if status == 402
+        print result          # prints error message and prompt
+        return verify_account # handles input and retrying
+      end
+      
       case (status / 100) # just get the class of status, e.g. any 4xx code will become 4
       when 2 # success, return result sans status code
         return result
@@ -457,6 +484,15 @@ module Duostack
       else
         exit_with "could not connect to Duostack API"
       end
+    end
+    
+    def verify_account
+      response = $stdin.gets.chomp.downcase
+      
+      # unless response is yes or blank (default yes), exit
+      exit unless response == 'yes'
+      
+      api_retry("billing_confirmed=1")
     end
     
     def sentencize(array, conjunction='or')
@@ -660,6 +696,56 @@ module Duostack
       })
     end
     
+    def instances
+      
+      arg = @args.shift || 'show' # show is the default
+      
+      # instance only takes one arg so any remaning ones are invalid
+      unless @args.empty?
+        exit_with("unrecognized argument: '#{@args.first}', run '#{@client} help #{@command}' for usage")
+      end
+      
+      action = if arg == 'show'
+        :show
+      else
+        case arg[0..0]
+        when '+' then :add
+        when '-' then :remove
+        else :set
+        end
+      end
+      
+      # process numerical argument unless listing
+      if action != :show
+        # drop the plus/minus sign to get qty (if add/remove)
+        qty = if action == :set
+          arg
+        else
+          arg[1..-1]
+        end
+      end
+      
+      # ensure qty is a plain integer at this point
+      begin
+        qty = Integer(qty)
+      rescue ArgumentError # this is what Integer() throws if its arg isn't convertible to an int
+        exit_with "'#{@command}' requires a numerical argument, try '#{@command} [+/-]<quantity>'"
+      end
+      
+      
+      # finally, process action
+      case action
+      when :show
+        puts api_get("count_instances")
+      when :add
+        puts api_get("set_instances", "qty=#{qty}&type=inc")
+      when :remove
+        puts api_get("set_instances", "qty=#{qty}&type=dec")
+      when :set
+        puts api_get("set_instances", "qty=#{qty}")
+      end
+    end
+    
     
     module Help
       
@@ -711,6 +797,7 @@ module Duostack
               env [<operation>]             Manage environment variables
               access [<operation>]          Manage app collaborator access
               domains [<operation>]         Manage custom domains
+              instances [<operation>]       Manage app instance count
             
             App Commands - Ruby:
               console                       Connect to IRB/Rails console
@@ -928,6 +1015,31 @@ module Duostack
             
             Remove: Removes one or more custom domains from the app. Remove multiple by
             supplying additional <domain> arguments separated by spaces.
+            
+          EOF
+        end
+        
+        def instances
+          <<-EOF
+            
+            Usage:
+              #{$client} instances                  shows current instance count
+              #{$client} instances <qty>            sets instance count to <qty>
+              #{$client} instances +<qty>           increments instance count by <qty> 
+              #{$client} instances -<qty>           decrements instance count by <qty>
+            
+            Examples:
+              #{$client} instances                  shows current instance count
+              #{$client} instances 5                sets instance count to 5
+              #{$client} instances +2               increments instance count by 2
+              #{$client} instances -2               decrements instance count by 2
+            
+            Adjusts instance count, either setting absolutely, or incrementing/decrementing
+            by a given quantity.
+            
+            Any increment, decrement, or set command that would result in an invalid 
+            instance count will be rejected with an error message. Instance counts must be
+            greater than 0 and not greater than 15.
             
           EOF
         end
