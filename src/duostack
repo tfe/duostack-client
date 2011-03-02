@@ -49,7 +49,8 @@ module Duostack
       :user    => [                  # commands requiring credentials (first-time setup)
         'create',
         'list',
-        'sync'
+        'sync',
+        'billing_reset'
       ],
       :app     => [                  # commands requiring an app to be specified (either by git inference or flag)
         'logs',
@@ -502,6 +503,11 @@ module Duostack
     
     def sync
       # empty method, just makes sure credentials are set
+    end
+    
+    # internal method for testing, just resets the billing confirmation prompt
+    def billing_reset
+      puts api_get('test_reset_billing_verification')
     end
     
     def list
