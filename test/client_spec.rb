@@ -184,7 +184,7 @@ describe "Duostack client" do
       
         it "should reflect stack change upon re-push" do
           `cd #{@app_path} && touch poke && git add poke && git commit -m "poke" && git push duostack master 2>&1`
-          result = run_expect("IO.popen('ruby -v') { |f| puts f.gets }", @app_name)
+          result = expect_console("IO.popen('ruby -v') { |f| puts f.gets }", @app_name)
           expected = <<-END.gsub(/^ {12}/, '').gsub("\r", '')
             spawn #{$client_executable} console --app #{@app_name}#{' ' if windows?}
             Connecting to Ruby console for #{@app_name}...
@@ -247,7 +247,7 @@ describe "Duostack client" do
         
         it "should see env vars in console" do
           run_command("restart --app #{@app_name}") # need to restart first
-          result = run_expect("ENV['env1']", @app_name)
+          result = expect_console("ENV['env1']", @app_name)
           expected = <<-END.gsub(/^ {12}/, '').gsub("\r", '')
             spawn #{$client_executable} console --app #{@app_name}#{' ' if windows?}
             Connecting to Ruby console for #{@app_name}...
@@ -350,7 +350,7 @@ describe "Duostack client" do
       
       describe "for Ruby apps" do
         it "should start a console session" do
-          result = run_expect("puts 'console test'", @app_name)
+          result = expect_console("puts 'console test'", @app_name)
           expected = <<-END.gsub(/^ {12}/, '').gsub("\r", '')
             spawn #{$client_executable} console --app #{@app_name}#{' ' if windows?}
             Connecting to Ruby console for #{@app_name}...

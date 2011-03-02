@@ -10,7 +10,7 @@ def run_command(command, app_path='.')
   `cd #{app_path} && #{build_command(command)} 2>&1`.chomp
 end
 
-def run_expect(command, app_name=nil)
+def expect_console(command, app_name)
   `expect #{File.dirname(__FILE__)}/console_test.expect #{$client_executable} "#{command}" #{app_name}`.gsub("\r", '')
 end
 
