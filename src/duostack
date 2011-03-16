@@ -1046,7 +1046,7 @@ module Duostack
             
             Any increment, decrement, or set command that would result in an invalid 
             instance count will be rejected with an error message. Instance counts must be
-            greater than 0 and not greater than 15.
+            greater than 0.
             
           EOF
         end
