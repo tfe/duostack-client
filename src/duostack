@@ -225,8 +225,15 @@ module Duostack
         puts "First-time Duostack client setup"
         print "Email: "
         username = $stdin.gets.chomp
-        password = `bash -c 'read -sp "Password: " passwd; echo $passwd'`.chomp
-        puts '' # clears the line after
+        print "Password: "
+        begin
+          # http://stackoverflow.com/questions/133719/how-to-read-a-password-in-ruby
+          system "stty -echo"
+          password = $stdin.gets.chomp
+          puts '' # clears the line after
+        ensure
+          system "stty echo" # this is important
+        end
         
         username = CGI::escape(username)
         password = CGI::escape(password)
