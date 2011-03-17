@@ -69,6 +69,7 @@ module Duostack
       :compound => [                 # mult-part commands that expect subsequent arguments, must validate extra args on their own
         'help',
         'create',
+        'console',
         'rake',
         'config',
         'env',
@@ -622,12 +623,32 @@ module Duostack
     def console
       # TODO: just use ruby expect lib
       
-      # first check for expect dependency
+      # args handling
+      valid_args = %w(app mysql mongodb) # first will be used as the default
+      arg = (@args.shift || valid_args.first).downcase
+      
+      # console only takes one arg so any remaning ones are invalid
+      unless @args.empty?
+        exit_with("unrecognized argument: '#{@args.first}', run '#{@client} help #{@command}' for usage")
+      end
+      
+      # ensure given arg is valid
+      unless valid_args.include?(arg)
+        exit_with "invalid argument for '#{@command}', try #{sentencize(valid_args)}"
+      end
+      
+      # check for expect dependency
       if `which expect`.empty?
         exit_with "missing dependency, please install Expect (http://expect.sourceforge.net/)"
       end
       
-      exec("#{$dir}/.duostack-console-expect #{@app_name}")
+      # finally start console
+      case arg
+      when 'app'
+        exec("#{$dir}/.duostack-expect 'cli-console@duostack.net' 'Connecting to Ruby console for ' '#{@app_name}'")
+      when 'mysql', 'mongodb'
+        exec("#{$dir}/.duostack-expect 'cli-dbconsole@duostack.net' 'Connecting to database console for ' '#{@app_name} (#{arg})'")
+      end
     end
     
     
@@ -807,6 +828,7 @@ module Duostack
               restart                       Restart instances
               ps                            List instances with current status
               destroy                       Destroy Duostack App and associated data
+              console [<database>]          Connect to app or database console
               config [<name> [<setting>]]   Show or set configuration options
               env [<operation>]             Manage environment variables
               access [<operation>]          Manage app collaborator access
@@ -814,7 +836,6 @@ module Duostack
               instances [<operation>]       Manage app instance count
             
             App Commands - Ruby:
-              console                       Connect to IRB/Rails console
               rake [<command>]              Run a Rake command
             
           EOF
@@ -1071,12 +1092,21 @@ module Duostack
         def console
           <<-EOF
             
-            Usage: #{$client} console
+            Usage: #{$client} console [<database>]  launches console session
             
-            Launches an interactive IRB/console session with your app. You can use this to
-            make any action you would normally make in your app's console.
+            Examples:
+              #{$client} console                    launches app console (Ruby apps only)
+              #{$client} console mysql              launches MySQL database console
+              #{$client} console mongodb            launches MongoDB database console
             
-            Applicable only to Ruby applications.
+            Launches an interactive console session with your app or one of its databases.
+            
+            If no argument is given, connects to the app console itself (applicable only to
+            Ruby apps). You can use this to make any action you would normally make in your
+            app's console.
+            
+            If a database name is given, connects to a database console session for that
+            database. Valid database names are: mysql, mongodb.
             
           EOF
         end
@@ -1093,7 +1123,7 @@ module Duostack
             Passing of environment variables if your rake task requires them is supported
             (e.g. rake db:seed MODEL=Posts).
             
-            Applicable only to Ruby applications.
+            Applicable only to Ruby apps.
             
           EOF
         end

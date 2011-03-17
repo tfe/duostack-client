@@ -1,7 +1,0 @@
-#!/usr/bin/env expect
-set appname [lindex $argv 0]
-
-spawn -noecho ssh cli-console@duostack.net 
-expect "Connecting to Ruby console for "
-send "$appname...\n"
-interact
