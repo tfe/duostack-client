@@ -53,6 +53,7 @@ module Duostack
         'billing_reset'
       ],
       :app     => [                  # commands requiring an app to be specified (either by git inference or flag)
+        'info',
         'logs',
         'restart',
         'ps',
@@ -581,6 +582,11 @@ module Duostack
     end
     
     
+    def info
+      puts api_get('get_info')
+    end
+    
+    
     def logs
       puts api_get('get_logs')
     end
@@ -796,6 +802,7 @@ module Duostack
               version                       Show version of this Duostack client
             
             App Commands:
+              info                          Show app summary information
               logs                          Retrieve server logs
               restart                       Restart instances
               ps                            List instances with current status
@@ -859,6 +866,16 @@ module Duostack
             Usage: #{$client} version
             
             Displays the client's version number.
+            
+          EOF
+        end
+        
+        def info
+          <<-EOF
+            
+            Usage: #{$client} info
+            
+            Retreives a summary of app data, e.g. Git remote URL, instance count, etc.
             
           EOF
         end
