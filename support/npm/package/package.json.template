@@ -14,7 +14,7 @@
   },
   "bin": {
     "duostack": "./bin/duostack",
-    ".duostack-console-expect": "./bin/.duostack-console-expect",
+    ".duostack-expect": "./bin/.duostack-expect",
     ".duostack-startcom.pem": "./bin/.duostack-startcom.pem"
   }
 }
