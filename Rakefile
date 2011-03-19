@@ -66,6 +66,7 @@ namespace :package do
       'package/package.json',
       'package/scripts/ruby-check.sh',
       'package/bin/.duostack-expect',
+      'package/bin/.duostack-console-expect',
       'package/bin/.duostack-startcom.pem',
       'package/bin/duostack'
     ].join(' ')

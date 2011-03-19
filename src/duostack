@@ -34,7 +34,8 @@ module Duostack
     
     DEFAULTS = {
       :credentials_location => '~/.duostack',
-      :remote_name => 'duostack'
+      :remote_name => 'duostack',
+      :console_type => 'app'
     }
     
     FLAGS = [                        # app and remote get special handling
@@ -78,6 +79,28 @@ module Duostack
         'instances'
       ]
     }
+    
+    CONSOLES = {
+      :app => {
+        :target => 'cli-console@duostack.net',
+        :display_type => 'Ruby',
+        :display_name_suffix => '',
+        :prompt => '>> '
+      },
+      :mysql => {
+        :target => 'cli-dbconsole@duostack.net',
+        :display_type => 'database',
+        :display_name_suffix => ' (mysql)',
+        :prompt => 'mysql> '
+      },
+      :mongodb => {
+        :target => 'cli-dbconsole@duostack.net',
+        :display_type => 'database',
+        :display_name_suffix => ' (mongodb)',
+        :prompt => '> '
+      }
+    }
+    
     
     def initialize(args=[], client='duostack')
       @args = args
@@ -623,18 +646,24 @@ module Duostack
     def console
       # TODO: just use ruby expect lib
       
-      # args handling
-      valid_args = %w(app mysql mongodb) # first will be used as the default
-      arg = (@args.shift || valid_args.first).downcase
-      
-      # console only takes one arg so any remaning ones are invalid
-      unless @args.empty?
-        exit_with("unrecognized argument: '#{@args.first}', run '#{@client} help #{@command}' for usage")
+      # get console and ensure it's valid
+      arg = (@args.shift || DEFAULTS[:console_type]).downcase
+      console = CONSOLES.fetch(arg.to_sym) do |invalid_type|
+        exit_with "invalid console type given ('#{invalid_type}'), try #{sentencize(CONSOLES.keys.collect { |k| k.to_s})}"
       end
       
-      # ensure given arg is valid
-      unless valid_args.include?(arg)
-        exit_with "invalid argument for '#{@command}', try #{sentencize(valid_args)}"
+      # take piped input first as command, fall back to using remaining command line args
+      if $stdin.tty?
+        console_command = @args.join(' ') unless @args.empty?
+        @args.clear
+      else
+        console_command = ''
+        $stdin.each_line { |line| console_command << line }
+      end
+      
+      # we're finished processing args any remaning ones are invalid
+      unless @args.empty?
+        exit_with("unrecognized argument: '#{@args.first}', run '#{@client} help #{@command}' for usage")
       end
       
       # check for expect dependency
@@ -642,12 +671,23 @@ module Duostack
         exit_with "missing dependency, please install Expect (http://expect.sourceforge.net/)"
       end
       
-      # finally start console
-      case arg
-      when 'app'
-        exec("#{$dir}/.duostack-expect 'cli-console@duostack.net' 'Connecting to Ruby console for ' '#{@app_name}'")
-      when 'mysql', 'mongodb'
-        exec("#{$dir}/.duostack-expect 'cli-dbconsole@duostack.net' 'Connecting to database console for ' '#{@app_name} (#{arg})'")
+      if console_command
+        # escape quotes in command
+        console_command.gsub!(/"/, '\\\\"')
+        
+        result = `#{$dir}/.duostack-console-expect '#{File.join($dir, $client)}' '#{arg}' '#{console[:prompt]}' "#{console_command}" '#{@app_name}'`
+        
+        result = result.split("\r\n")
+        start  = (result.index("#{console[:prompt]}#{console_command}") || 0) + 1
+        stop   = (result.index("#{console[:prompt]}exit")               || 0) - 1
+        result = result.slice(start..stop)
+        
+        # clean up ruby return value marker
+        result[-1] = result[-1][3..-1] if arg == 'app'
+        
+        puts result.join("\r\n")
+      else
+        exec("#{$dir}/.duostack-expect '#{console[:target]}' 'Connecting to #{console[:display_type]} console for ' '#{@app_name}#{console[:display_name_suffix]}'")
       end
     end
     
