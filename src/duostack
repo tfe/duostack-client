@@ -672,20 +672,36 @@ module Duostack
       end
       
       if console_command
-        # escape quotes in command
-        console_command.gsub!(/"/, '\\\\"')
         
-        result = `#{$dir}/.duostack-console-expect '#{File.join($dir, $client)}' '#{arg}' '#{console[:prompt]}' "#{console_command}" '#{@app_name}'`
+        # generate console command filename
+        timestamp = begin
+          t = Time.now
+          "#{t.to_i}.#{t.usec}"
+        end
+        console_command_file = File.join('/tmp', "ds-#{timestamp}.txt")
         
+        # write console command to file
+        file = File.new(console_command_file, 'w+')
+        file.chmod(0600)
+        file.write(console_command)
+        file.close
+        
+        result = `#{$dir}/.duostack-console-expect '#{File.join($dir, $client)}' '#{arg}' '#{console[:prompt]}' '#{console_command_file}' '#{@app_name}'`
+        
+        # clean up command file
+        File.delete(console_command_file)
+        
+        # munge results
         result = result.split("\r\n")
-        start  = (result.index("#{console[:prompt]}#{console_command}") || 0) + 1
-        stop   = (result.index("#{console[:prompt]}exit")               || 0) - 1
+        start  = (result.index("#{console[:prompt]}")     || 0) + 2
+        stop   = (result.index("#{console[:prompt]}exit") || 0) - 1
         result = result.slice(start..stop)
         
         # clean up ruby return value marker
         result[-1] = result[-1][3..-1] if arg == 'app'
         
         puts result.join("\r\n")
+        
       else
         exec("#{$dir}/.duostack-expect '#{console[:target]}' 'Connecting to #{console[:display_type]} console for ' '#{@app_name}#{console[:display_name_suffix]}'")
       end
@@ -868,7 +884,7 @@ module Duostack
               restart                       Restart instances
               ps                            List instances with current status
               destroy                       Destroy Duostack App and associated data
-              console [<database>]          Connect to app or database console
+              console [<type> [command]]    Connect to app or database console, run command
               config [<name> [<setting>]]   Show or set configuration options
               env [<operation>]             Manage environment variables
               access [<operation>]          Manage app collaborator access
@@ -1132,21 +1148,56 @@ module Duostack
         def console
           <<-EOF
             
-            Usage: #{$client} console [<database>]  launches console session
+            Usage:
+              #{$client} console [<type> [<command>]]
+                                           launches console session of <type> (defaults to
+                                           'app' console), optionally runs specified
+                                           <command> in console and prints the result
+              
+              #{$client} console <type> <command> > <output-file>
+                                           pipes the output from running <command> to the
+                                           specified <output-file>
+              
+              #{$client} console <type> < <input-file>
+                                           pipes the contents of <input-file> into the
+                                           specified console <type>, prints the result
             
             Examples:
-              #{$client} console                    launches app console (Ruby apps only)
-              #{$client} console mysql              launches MySQL database console
-              #{$client} console mongodb            launches MongoDB database console
+              #{$client} console           same as running "#{$client} console app"
+              #{$client} console app       launches interactive app console (Ruby apps only)
+              #{$client} console mysql     launches interactive MySQL database console
+              #{$client} console mongodb   launches interactive MongoDB database console
+              
+              #{$client} console app "puts('hello world')"
+              #{$client} console mysql "SHOW TABLES;"
+                                           runs the specified command and prints the result
+              
+              #{$client} console mysql "SHOW TABLES;" > tables.txt
+                                           runs "SHOW TABLES;" in the app's MySQL console,
+                                           piping output into the file "tables.txt"
+              
+              #{$client} console mysql < import.sql
+                                           (EXPERIMENTAL) pipes the contents of "import.sql"
+                                           into the app's MySQL console, printing the result
             
-            Launches an interactive console session with your app or one of its databases.
+            The "console" command can operate in three ways:
             
-            If no argument is given, connects to the app console itself (applicable only to
-            Ruby apps). You can use this to make any action you would normally make in your
-            app's console.
+            1. Launching an interactive console session with your app or one of its
+            databases. If no argument is given, it connects to the app console itself
+            (applicable only to Ruby apps). If a database name is given, connects to a
+            database console session for that database. Valid database names are: mysql,
+            mongodb.
             
-            If a database name is given, connects to a database console session for that
-            database. Valid database names are: mysql, mongodb.
+            You can use then use these interactive console sessions to make any action you
+            would normally make in your app or database console.
+            
+            2. Running an ad-hoc command specified on the command line in the remaining
+            arguments, and printing the result. You could also then pipe the output into an
+            arbitrary file.
+            
+            3. (EXPERIMENTAL) Sending the contents of a piped-in file to the specified (app
+            or database) console. The resulting output will be collected and printed to your
+            terminal.
             
           EOF
         end
